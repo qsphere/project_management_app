@@ -1,0 +1,1 @@
+PAGES = ("Dashboard", "Cards", "Labels")

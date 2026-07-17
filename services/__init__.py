@@ -1,0 +1,43 @@
+"""Orchestration package. Prefer ``services.trello`` / ``services.excel``; re-exports kept for convenience."""
+
+from __future__ import annotations
+
+from services.excel import (
+    excel_template_bytes,
+    read_sheet_names,
+    read_tasks,
+    run_import,
+)
+from services.trello import (
+    connected_client,
+    create_label,
+    delete_card,
+    delete_cards,
+    delete_label,
+    label_dashboard_rows,
+    load_board_labels,
+    load_cards_manage,
+    load_initiative_dashboard,
+    load_label_dashboard,
+    update_card,
+    update_label,
+)
+
+__all__ = [
+    "connected_client",
+    "create_label",
+    "delete_card",
+    "delete_cards",
+    "delete_label",
+    "excel_template_bytes",
+    "label_dashboard_rows",
+    "load_board_labels",
+    "load_cards_manage",
+    "load_initiative_dashboard",
+    "load_label_dashboard",
+    "read_sheet_names",
+    "read_tasks",
+    "run_import",
+    "update_card",
+    "update_label",
+]
