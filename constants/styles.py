@@ -9,6 +9,21 @@ NAV_CSS = """
     opacity: 1 !important;
     visibility: visible !important;
   }
+  /* Outlined auth header buttons — full border, white fill */
+  div.st-key-auth_header_sign_up button,
+  div.st-key-auth_header_sign_out button {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border: 1.5px solid #d1d5db !important;
+    border-radius: 0.5rem !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+  }
+  div.st-key-auth_header_sign_up button:hover,
+  div.st-key-auth_header_sign_out button:hover {
+    background-color: #f9fafb !important;
+    border-color: #9ca3af !important;
+  }
 </style>
 """
 

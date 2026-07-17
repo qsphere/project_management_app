@@ -15,6 +15,7 @@ from __future__ import annotations
 import streamlit as st
 from dotenv import load_dotenv
 
+from ui.component.auth import render_auth_bar
 from ui.component.sidebar import render_sidebar
 from ui.views.cards import render_cards_page
 from ui.views.dashboard import render_dashboard_page
@@ -49,13 +50,18 @@ if "main_nav" not in st.session_state:
 # Migrate sessions that still have the old split "Import cards" nav value.
 elif st.session_state.main_nav == "Import cards":
     st.session_state.main_nav = "Cards"
-page = st.radio(
-    "Pages",
-    options=list(PAGES),
-    key="main_nav",
-    horizontal=True,
-    label_visibility="collapsed",
-)
+
+nav_col, auth_col = st.columns([5, 2], vertical_alignment="center")
+with nav_col:
+    page = st.radio(
+        "Pages",
+        options=list(PAGES),
+        key="main_nav",
+        horizontal=True,
+        label_visibility="collapsed",
+    )
+with auth_col:
+    render_auth_bar()
 
 if page == "Dashboard":
     if client is None:
