@@ -1,106 +1,101 @@
+"""Create / edit / delete label dialogs."""
+
 from __future__ import annotations
 
-import pandas as pd
 import streamlit as st
 
-from services import create_label, delete_label, load_board_labels, update_label
-from ui.component.color_selector import render_color_selector
-from constants.colors import LABEL_COLORS
 from clients import TrelloClient
+from constants.colors import LABEL_COLORS
+from services import create_label, delete_label, update_label
+from ui.component.color_selector import render_color_selector
+
+_DIALOG_OPEN = "label_dialog_open"
+_DIALOG_MODE = "label_dialog_mode"
+_EDIT_ID = "label_edit_id"
+_NAME_KEY = "label_dialog_name"
+_COLOR_KEY = "label_dialog_color"
 
 
-def render_label_crud(client: TrelloClient) -> None:
-    st.divider()
-    st.subheader("Board labels")
-    st.caption(
-        "Spreadsheet Labels values are matched by name (case-insensitive). "
-        "Missing names are created automatically on import."
-    )
+def open_new_label_dialog() -> None:
+    st.session_state[_DIALOG_OPEN] = True
+    st.session_state[_DIALOG_MODE] = "new"
+    st.session_state.pop(_EDIT_ID, None)
+    st.session_state[_NAME_KEY] = ""
+    st.session_state[_COLOR_KEY] = "green"
+    st.rerun()
 
-    try:
-        labels = load_board_labels(client)
-    except Exception as exc:
-        st.error(f"Could not load labels: {exc}")
+
+def open_edit_label_dialog(label: dict) -> None:
+    color = label.get("color") or "green"
+    if color not in LABEL_COLORS:
+        color = "green"
+    st.session_state[_DIALOG_OPEN] = True
+    st.session_state[_DIALOG_MODE] = "edit"
+    st.session_state[_EDIT_ID] = label["id"]
+    st.session_state[_NAME_KEY] = label.get("name") or ""
+    st.session_state[_COLOR_KEY] = color
+    st.rerun()
+
+
+def _close_dialog() -> None:
+    st.session_state.pop(_DIALOG_OPEN, None)
+    st.session_state.pop(_DIALOG_MODE, None)
+    st.session_state.pop(_EDIT_ID, None)
+
+
+def render_label_dialog(client: TrelloClient) -> None:
+    if not st.session_state.get(_DIALOG_OPEN):
         return
 
-    if not labels:
-        st.info("This board has no labels yet.")
-    else:
-        rows = []
-        for item in labels:
-            color = item.get("color") or "(none)"
-            display_name = item["name"] or "(unnamed)"
-            rows.append(
-                {
-                    "Name": display_name,
-                    "Color": color,
-                    "Uses": item.get("uses", 0),
-                    "ID": item["id"],
-                }
-            )
-        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+    mode = st.session_state.get(_DIALOG_MODE, "new")
+    title = "Edit label" if mode == "edit" else "New label"
 
-    st.divider()
-    st.subheader("Create label")
-    new_name = st.text_input("Name", placeholder="e.g. Bug", key="create_label_name")
-    create_color = render_color_selector("create_label_color", default="red")
-    if st.button("Create label", type="primary", key="create_label_btn"):
-        name = (new_name or "").strip()
-        if not name:
-            st.error("Name is required.")
+    @st.dialog(title, width="small", on_dismiss=_close_dialog)
+    def _dialog() -> None:
+        st.text_input("NAME", key=_NAME_KEY, placeholder="e.g. Bug")
+        color = render_color_selector(_COLOR_KEY, default="green")
+        name = str(st.session_state.get(_NAME_KEY, "")).strip()
+        can_save = bool(name)
+
+        if mode == "edit":
+            _, cancel_col, delete_col, save_col = st.columns([1.2, 1, 1, 1])
         else:
-            try:
-                color = None if create_color == "(none)" else create_color
-                created = create_label(client, name, color)
-                st.success(
-                    f"Created label {created.get('name')!r} "
-                    f"({created.get('color') or 'no color'})."
-                )
+            delete_col = None
+            _, cancel_col, save_col = st.columns([2, 1, 1])
+
+        with cancel_col:
+            if st.button("Cancel", width="stretch", key="label_dialog_cancel"):
+                _close_dialog()
                 st.rerun()
-            except Exception as exc:
-                st.error(f"Could not create label: {exc}")
+        if delete_col is not None:
+            with delete_col:
+                if st.button("Delete", width="stretch", key="label_dialog_delete"):
+                    try:
+                        delete_label(client, st.session_state[_EDIT_ID])
+                        _close_dialog()
+                        st.rerun()
+                    except Exception as exc:
+                        st.error(f"Could not delete label: {exc}")
+        with save_col:
+            if st.button(
+                "Save",
+                type="primary",
+                width="stretch",
+                disabled=not can_save,
+                key="label_dialog_save",
+            ):
+                _save(client, mode, name, color)
 
-    if not labels:
-        return
+    _dialog()
 
-    st.divider()
-    st.subheader("Edit or delete label")
-    label_choices = {
-        f"{(item['name'] or '(unnamed)')} · {item.get('color') or 'none'}": item
-        for item in labels
-    }
-    selected_key = st.selectbox("Label", list(label_choices.keys()))
-    selected = label_choices[selected_key]
 
-    # Keep edit color in sync when the chosen label changes.
-    edit_sync_key = "edit_label_sync_id"
-    current_color = selected.get("color") or "(none)"
-    if st.session_state.get(edit_sync_key) != selected["id"]:
-        valid = current_color in {*(LABEL_COLORS), "(none)"}
-        st.session_state["edit_label_color"] = current_color if valid else "red"
-        st.session_state[edit_sync_key] = selected["id"]
-
-    edit_name = st.text_input("Name", value=selected["name"], key="edit_label_name")
-    edit_color = render_color_selector(
-        "edit_label_color",
-        default=current_color if current_color in {*(LABEL_COLORS), "(none)"} else "red",
-    )
-
-    col_save, col_delete = st.columns(2)
-    if col_save.button("Save changes", width="stretch", key="save_label_btn"):
-        name = (edit_name or "").strip()
-        color = "" if edit_color == "(none)" else edit_color
-        try:
-            update_label(client, selected["id"], name=name, color=color)
-            st.success("Label updated.")
-            st.rerun()
-        except Exception as exc:
-            st.error(f"Could not update label: {exc}")
-
-    if col_delete.button("Delete label", width="stretch", key="delete_label_btn"):
-        try:
-            delete_label(client, selected["id"])
-            st.success("Label deleted.")
-            st.rerun()
-        except Exception as exc:
-            st.error(f"Could not delete label: {exc}")
+def _save(client: TrelloClient, mode: str, name: str, color: str) -> None:
+    try:
+        if mode == "edit":
+            update_label(client, st.session_state[_EDIT_ID], name=name, color=color)
+        else:
+            create_label(client, name, color)
+        _close_dialog()
+        st.rerun()
+    except Exception as exc:
+        st.error(f"Could not save label: {exc}")

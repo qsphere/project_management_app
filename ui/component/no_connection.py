@@ -31,7 +31,10 @@ _EMPTY_STATES = {
     },
     "Labels": {
         "page_title": "Labels",
-        "page_sub": "Select labels from the board to sync.",
+        "page_sub": (
+            "All labels on this board, regardless of which list "
+            "their cards sit in."
+        ),
         "title": "No connection yet",
         "body": "Add a connection to start syncing labels from Trello.",
         "button": "Add connection",
