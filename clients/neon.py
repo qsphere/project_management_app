@@ -104,5 +104,103 @@ class NeonClient:
             (user_id,),
         )
 
+    def ensure_trello_connections_table(self) -> None:
+        self.execute(
+            """
+            CREATE TABLE IF NOT EXISTS app_trello_connections (
+                id BIGSERIAL PRIMARY KEY,
+                user_id BIGINT NOT NULL
+                    REFERENCES app_users(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                api_key TEXT NOT NULL DEFAULT '',
+                token TEXT NOT NULL DEFAULT '',
+                board_id TEXT NOT NULL DEFAULT '',
+                list_id TEXT NOT NULL DEFAULT '',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """
+        )
+
+    def list_trello_connections(self, user_id: int | str) -> list[dict[str, Any]]:
+        return self.execute(
+            """
+            SELECT id, name, api_key, token, board_id, list_id
+            FROM app_trello_connections
+            WHERE user_id = %s
+            ORDER BY updated_at DESC, id DESC
+            """,
+            (user_id,),
+        )
+
+    def get_trello_connection(
+        self, user_id: int | str, connection_id: int | str
+    ) -> dict[str, Any] | None:
+        return self.execute_one(
+            """
+            SELECT id, name, api_key, token, board_id, list_id
+            FROM app_trello_connections
+            WHERE user_id = %s AND id = %s
+            """,
+            (user_id, connection_id),
+        )
+
+    def create_trello_connection(
+        self,
+        *,
+        user_id: int | str,
+        name: str,
+        api_key: str,
+        token: str,
+        board_id: str,
+        list_id: str,
+    ) -> dict[str, Any]:
+        row = self.execute_one(
+            """
+            INSERT INTO app_trello_connections
+                (user_id, name, api_key, token, board_id, list_id)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id, name, api_key, token, board_id, list_id
+            """,
+            (user_id, name, api_key, token, board_id, list_id),
+        )
+        if row is None:
+            raise RuntimeError("Failed to create Trello connection")
+        return row
+
+    def update_trello_connection(
+        self,
+        *,
+        user_id: int | str,
+        connection_id: int | str,
+        name: str,
+        api_key: str,
+        token: str,
+        board_id: str,
+        list_id: str,
+    ) -> dict[str, Any] | None:
+        return self.execute_one(
+            """
+            UPDATE app_trello_connections
+            SET name = %s, api_key = %s, token = %s, board_id = %s,
+                list_id = %s, updated_at = NOW()
+            WHERE user_id = %s AND id = %s
+            RETURNING id, name, api_key, token, board_id, list_id
+            """,
+            (name, api_key, token, board_id, list_id, user_id, connection_id),
+        )
+
+    def delete_trello_connection(
+        self, user_id: int | str, connection_id: int | str
+    ) -> dict[str, Any] | None:
+        return self.execute_one(
+            """
+            DELETE FROM app_trello_connections
+            WHERE user_id = %s AND id = %s
+            RETURNING id, name
+            """,
+            (user_id, connection_id),
+        )
+
 
 __all__ = ["NeonClient"]

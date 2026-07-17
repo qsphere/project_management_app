@@ -52,9 +52,10 @@ trello_from_excel/
 │   ├── neon.py                 # Neon Postgres (psycopg) — sole DB surface
 │   └── resend.py               # Resend email API — sole email surface
 ├── constants/                  # STRICT: sole place for static constants
-│   ├── pages.py                # PAGES = Dashboard, Cards, Labels
+│   ├── pages.py                # PAGES = Dashboard, Cards, Labels, Connection
 │   ├── colors.py               # COLOR_SWATCH, LABEL_COLORS, PALETTE_HUES
-│   ├── styles.py               # NAV_CSS, DASHBOARD_CSS
+│   ├── styles.py               # NAV_CSS, CONNECTIONS_CSS, DASHBOARD_CSS
+│   ├── links.py                # Trello guide, GitHub, privacy URLs
 │   ├── excel.py                # COLUMN_ALIASES, TEMPLATE_COLUMNS
 │   └── status.py               # LIST_PALETTE, STATUS_*, status regexes
 ├── functions/                  # pure helpers + domain (no Streamlit)
@@ -71,6 +72,7 @@ trello_from_excel/
 │   ├── trello.py               # TrelloClient wrappers (connect, cards, labels, dashboards)
 │   ├── neon.py                 # NeonClient wrappers (connect, ping)
 │   ├── auth.py                 # account create / sign-in (Neon + welcome email)
+│   ├── config.py               # named Trello connections CRUD (Neon)
 │   ├── email.py                # ResendClient wrappers (welcome email)
 │   ├── excel.py                # process_tasks / UI import helpers
 │   └── __init__.py             # re-exports
@@ -80,12 +82,18 @@ trello_from_excel/
 │   ├── views/
 │   │   ├── dashboard.py        # initiative dashboard page
 │   │   ├── cards.py            # Cards page shell (Manage + Import tabs)
-│   │   └── labels.py           # Labels page
+│   │   ├── labels.py           # Labels page
+│   │   └── connections.py      # Connection page (signed-in only)
 │   ├── tabs/
 │   │   ├── manage.py           # Cards → Manage (filters, table, edit)
 │   │   └── import_cards.py     # Cards → Import (upload, preview, create)
 │   └── component/
-│       ├── sidebar.py          # credentials + defaults + create delay
+│       ├── sidebar.py          # active connection + create delay
+│       ├── auth.py             # sign-in / manage account
+│       ├── trello_config_state.py  # session helpers for active connection
+│       ├── connection_dialog.py    # add/edit connection modal
+│       ├── connection_list.py      # connection cards + empty state
+│       ├── footer.py               # page footer
 │       ├── initiative_card.py  # one initiative card on Dashboard
 │       ├── color_selector.py   # label color palette + dashboard CSS inject
 │       ├── cards_filters.py    # list / due / label / assignee filters
@@ -136,7 +144,7 @@ CLI flags override `.env` when provided (`--board-id`, `--list-id`, `--sheet`).
 | `TRELLO_LIST_ID` | No | Default list when a row has no List |
 | `DATABASE_URL` | No* | Neon Postgres URL (*required for DB features; prefer pooled `-pooler` host) |
 
-Auth is always query params `key` + `token` on `https://api.trello.com/1`. Never log full request URLs or params that include secrets. `clients.http.raise_for_status` exists specifically to avoid leaking credentials in error messages — keep that property. Never log `DATABASE_URL`.
+Auth is always query params `key` + `token` on `https://api.trello.com/1`. Never log full request URLs or params that include secrets. `clients.http.raise_for_status` exists specifically to avoid leaking credentials in error messages — keep that property. Never log `DATABASE_URL`. Signed-in users can save multiple named Trello connections on the Connection page (`app_trello_connections` in Neon); `.env` remains the default/fallback.
 
 Authorize a token (replace `YOUR_KEY`):
 `https://trello.com/1/authorize?expiration=never&scope=read,write&response_type=token&name=TrelloBoardTools&key=YOUR_KEY`
@@ -178,8 +186,9 @@ Prefer extending `COLUMN_ALIASES` over one-off column handling in the UI.
 1. **Dashboard** (`ui/views/dashboard.py`) — initiative burndown / status (needs connected client)
 2. **Cards** (`ui/views/cards.py`) — Manage tab (`ui/tabs/manage.py`: filters, edit/move/delete, mass delete) and Import tab (`ui/tabs/import_cards.py`: upload `.xlsx`, preview, dry-run or create)
 3. **Labels** (`ui/views/labels.py`) — breakdown + CRUD + color palette
+4. **Connection** (`ui/views/connections.py`) — named Trello connections (add/edit/delete modal; signed-in only; Neon `app_trello_connections`)
 
-When adding a page: register it in `PAGES` (`constants/pages.py`), add `ui/views/<name>.py`, wire the nav in `app.py`, and gate on `client is None` like the others.
+When adding a page: register it in `PAGES` (`constants/pages.py`), add `ui/views/<name>.py`, wire the nav in `app.py`, and gate on `client is None` like the others (Connection gates on signed-in user instead).
 
 ## Safety
 
