@@ -1,0 +1,6 @@
+pandas
+openpyxl
+openpyxl-stubs
+requests
+python-dotenv
+streamlit
