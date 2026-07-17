@@ -4,3 +4,4 @@ openpyxl-stubs
 requests
 python-dotenv
 streamlit
+psycopg[binary]

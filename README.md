@@ -36,8 +36,11 @@ cp .env.example .env
 | `TRELLO_TOKEN` | Yes | Token with read/write access. Authorize at: `https://trello.com/1/authorize?expiration=never&scope=read,write&response_type=token&name=TrelloBoardTools&key=YOUR_KEY` |
 | `TRELLO_BOARD_ID` | Yes* | Default board ID |
 | `TRELLO_LIST_ID` | No | Default list when a row has no `List` value |
+| `DATABASE_URL` | No* | Neon Postgres connection string (*needed for DB features; prefer pooled URL) |
 
 \*Board ID can also be passed with `--board-id` on the CLI, or entered in the UI.
+
+Get `DATABASE_URL` from the [Neon Console](https://console.neon.tech/) → your project → **Connect**. Keep `sslmode=require` (and `channel_binding=require` when present).
 
 ## Excel format
 

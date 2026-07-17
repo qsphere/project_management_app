@@ -8,6 +8,7 @@ from services.excel import (
     read_tasks,
     run_import,
 )
+from services.neon import connected_neon_client, ping_neon
 from services.trello import (
     connected_client,
     create_label,
@@ -25,6 +26,7 @@ from services.trello import (
 
 __all__ = [
     "connected_client",
+    "connected_neon_client",
     "create_label",
     "delete_card",
     "delete_cards",
@@ -35,6 +37,7 @@ __all__ = [
     "load_cards_manage",
     "load_initiative_dashboard",
     "load_label_dashboard",
+    "ping_neon",
     "read_sheet_names",
     "read_tasks",
     "run_import",
