@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from services.auth import AuthError, create_account, sign_in
+from services.auth import AuthError, create_account, delete_account, sign_in
 from services.excel import (
     excel_template_bytes,
     read_sheet_names,
@@ -31,6 +31,7 @@ __all__ = [
     "connected_neon_client",
     "create_account",
     "create_label",
+    "delete_account",
     "delete_card",
     "delete_cards",
     "delete_label",

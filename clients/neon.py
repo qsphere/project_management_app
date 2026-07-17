@@ -93,5 +93,16 @@ class NeonClient:
             (email,),
         )
 
+    def delete_user(self, user_id: int | str) -> dict[str, Any] | None:
+        """Delete a user by id. Returns the deleted row, or None if missing."""
+        return self.execute_one(
+            """
+            DELETE FROM app_users
+            WHERE id = %s
+            RETURNING id, full_name, email
+            """,
+            (user_id,),
+        )
+
 
 __all__ = ["NeonClient"]

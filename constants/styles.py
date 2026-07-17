@@ -11,7 +11,7 @@ NAV_CSS = """
   }
   /* Outlined auth header buttons — full border, white fill */
   div.st-key-auth_header_sign_up button,
-  div.st-key-auth_header_sign_out button {
+  div.st-key-auth_header_manage_account button {
     background-color: #ffffff !important;
     color: #111827 !important;
     border: 1.5px solid #d1d5db !important;
@@ -20,9 +20,30 @@ NAV_CSS = """
     box-shadow: none !important;
   }
   div.st-key-auth_header_sign_up button:hover,
-  div.st-key-auth_header_sign_out button:hover {
+  div.st-key-auth_header_manage_account button:hover {
     background-color: #f9fafb !important;
     border-color: #9ca3af !important;
+  }
+  /* Account modal action buttons */
+  div.st-key-account_sign_out button {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border: 1.5px solid #d1d5db !important;
+    border-radius: 0.5rem !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+  }
+  div.st-key-account_delete_btn button {
+    background-color: #ffffff !important;
+    color: #dc2626 !important;
+    border: 1.5px solid #d1d5db !important;
+    border-radius: 0.5rem !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+  }
+  div.st-key-account_delete_btn button:hover {
+    background-color: #fef2f2 !important;
+    border-color: #fca5a5 !important;
   }
 </style>
 """
