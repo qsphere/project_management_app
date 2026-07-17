@@ -48,6 +48,90 @@ NAV_CSS = """
 </style>
 """
 
+CONNECTIONS_CSS = """
+<style>
+  .connections-kicker {
+    color: #6b7280;
+    font-size: 0.95rem;
+    margin-top: -0.35rem;
+    margin-bottom: 1.25rem;
+  }
+  .connections-kicker a { color: #0052cc; text-decoration: none; font-weight: 600; }
+  .connections-kicker a:hover { text-decoration: underline; }
+  .conn-count {
+    color: #374151;
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0.25rem 0 0.85rem;
+  }
+  .conn-empty {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #f9fafb;
+    color: #6b7280;
+    font-weight: 600;
+    text-align: center;
+    padding: 2.75rem 1rem;
+  }
+  .conn-card-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 0.35rem;
+  }
+  .conn-card-meta {
+    color: #6b7280;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin: 0;
+  }
+  .app-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 2.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+    color: #6b7280;
+    font-size: 0.85rem;
+  }
+  .app-footer-links { display: flex; gap: 1.1rem; align-items: center; }
+  .app-footer a { color: #4b5563; text-decoration: none; font-weight: 600; }
+  .app-footer a:hover { color: #111827; }
+  div[data-testid="stDialog"] label p {
+    color: #6b7280 !important;
+    font-size: 0.72rem !important;
+    font-weight: 650 !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
+  }
+  div.st-key-conn_add_btn button,
+  div.st-key-conn_dialog_save button {
+    background-color: #0052cc !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 0.5rem !important;
+    font-weight: 600 !important;
+  }
+  div.st-key-conn_dialog_cancel button {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border: 1.5px solid #d1d5db !important;
+    border-radius: 0.5rem !important;
+    font-weight: 600 !important;
+  }
+  div[class*="st-key-conn_card_del_"] button {
+    background-color: #ffffff !important;
+    color: #dc2626 !important;
+    border: 1.5px solid #fca5a5 !important;
+    border-radius: 0.5rem !important;
+    font-weight: 600 !important;
+  }
+</style>
+"""
+
 DASHBOARD_CSS = """
 <style>
   .block-container { padding-top: 3.5rem; padding-bottom: 2rem; }

@@ -1,1 +1,1 @@
-PAGES = ("Dashboard", "Cards", "Labels")
+PAGES = ("Dashboard", "Cards", "Labels", "Connection")

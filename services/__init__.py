@@ -3,6 +3,14 @@
 from __future__ import annotations
 
 from services.auth import AuthError, create_account, delete_account, sign_in
+from services.config import (
+    create_trello_connection,
+    delete_trello_connection,
+    env_trello_config,
+    get_trello_connection,
+    list_trello_connections,
+    update_trello_connection,
+)
 from services.excel import (
     excel_template_bytes,
     read_sheet_names,
@@ -31,12 +39,17 @@ __all__ = [
     "connected_neon_client",
     "create_account",
     "create_label",
+    "create_trello_connection",
     "delete_account",
     "delete_card",
     "delete_cards",
     "delete_label",
+    "delete_trello_connection",
+    "env_trello_config",
     "excel_template_bytes",
+    "get_trello_connection",
     "label_dashboard_rows",
+    "list_trello_connections",
     "load_board_labels",
     "load_cards_manage",
     "load_initiative_dashboard",
@@ -48,4 +61,5 @@ __all__ = [
     "sign_in",
     "update_card",
     "update_label",
+    "update_trello_connection",
 ]

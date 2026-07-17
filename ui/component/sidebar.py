@@ -2,33 +2,42 @@ from __future__ import annotations
 
 import streamlit as st
 
-from services import connected_client
 from clients import TrelloClient
-from functions.env import env
+from services import connected_client
+from services.auth import AuthError
+from services.config import list_trello_connections
+from ui.component.auth import current_user
+from ui.component.trello_config_state import (
+    active_connection_id,
+    set_active_connection,
+    sync_trello_config_session,
+)
 
 
 def render_sidebar() -> tuple[
     str, str, str, dict[str, str], str | None, TrelloClient | None, float
 ]:
+    cfg = sync_trello_config_session()
+    api_key = cfg.get("api_key", "")
+    token = cfg.get("token", "")
+    board_id = cfg.get("board_id", "")
+    default_list_id = cfg.get("list_id", "")
+
+    list_options: dict[str, str] = {}
+    selected_list_id: str | None = default_list_id or None
+    client: TrelloClient | None = None
+
     with st.sidebar:
         st.header("Connection")
-        api_key = st.text_input(
-            "API key",
-            value=env("TRELLO_API_KEY"),
-            type="password",
-            help="From https://trello.com/power-ups/admin",
-        )
-        token = st.text_input(
-            "Token",
-            value=env("TRELLO_TOKEN"),
-            type="password",
-        )
-        board_id = st.text_input("Board ID", value=env("TRELLO_BOARD_ID"))
-
-        default_list_id = env("TRELLO_LIST_ID")
-        list_options: dict[str, str] = {}
-        selected_list_id: str | None = default_list_id or None
-        client: TrelloClient | None = None
+        user = current_user()
+        if user is not None:
+            _render_connection_picker(user["id"])
+            cfg = sync_trello_config_session()
+            api_key = cfg.get("api_key", "")
+            token = cfg.get("token", "")
+            board_id = cfg.get("board_id", "")
+            default_list_id = cfg.get("list_id", "")
+            selected_list_id = default_list_id or None
 
         if api_key and token and board_id:
             try:
@@ -52,15 +61,33 @@ def render_sidebar() -> tuple[
             except Exception as exc:
                 st.error(f"Could not load board lists: {exc}")
                 client = None
-                selected_list_id = (
-                    st.text_input("Default list ID", value=default_list_id) or None
-                )
+                selected_list_id = default_list_id or None
         else:
-            st.info("Enter API key, token, and board ID to load lists.")
-            selected_list_id = (
-                st.text_input("Default list ID", value=default_list_id) or None
+            st.info(
+                "Add a Trello connection on the Connection page "
+                "(sign in required), or set values in `.env`."
             )
 
         delay = st.slider("Delay between creates (seconds)", 0.0, 2.0, 0.25, 0.05)
 
     return api_key, token, board_id, list_options, selected_list_id, client, delay
+
+
+def _render_connection_picker(user_id: int | str) -> None:
+    try:
+        connections = list_trello_connections(user_id)
+    except AuthError:
+        return
+    if not connections:
+        return
+    by_id = {c["id"]: c for c in connections}
+    ids = [c["id"] for c in connections]
+    active_id = active_connection_id()
+    index = ids.index(active_id) if active_id in by_id else 0
+    chosen_id = st.selectbox(
+        "Active connection",
+        ids,
+        index=index,
+        format_func=lambda i: by_id[i]["name"],
+    )
+    set_active_connection(by_id[chosen_id])

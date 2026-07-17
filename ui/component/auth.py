@@ -7,6 +7,7 @@ from html import escape
 import streamlit as st
 
 from services.auth import AuthError, create_account, delete_account, sign_in
+from ui.component.trello_config_state import clear_trello_config_session
 
 _AUTH_USER_KEY = "auth_user"
 _AUTH_DIALOG_KEY = "auth_dialog_open"
@@ -53,6 +54,7 @@ def _set_user(user: dict) -> None:
 
 def _sign_out() -> None:
     st.session_state.pop(_AUTH_USER_KEY, None)
+    clear_trello_config_session()
     _close_account_dialog()
     st.rerun()
 
@@ -198,6 +200,7 @@ def _open_account_dialog(user: dict) -> None:
                 try:
                     delete_account(user_id=user["id"])
                     st.session_state.pop(_AUTH_USER_KEY, None)
+                    clear_trello_config_session()
                     _close_account_dialog()
                     st.rerun()
                 except AuthError as exc:

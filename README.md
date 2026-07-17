@@ -40,7 +40,7 @@ cp .env.example .env
 | `RESEND_API_KEY` | No* | Resend API key (*needed to email users on account creation) |
 | `RESEND_FROM_EMAIL` | No | From address; defaults to `Project Management <onboarding@resend.dev>` |
 
-\*Board ID can also be passed with `--board-id` on the CLI, or entered in the UI.
+\*Board ID can also be passed with `--board-id` on the CLI, or set on the **Connection** page after signing in.
 
 Get `DATABASE_URL` from the [Neon Console](https://console.neon.tech/) → your project → **Connect**. Keep `sslmode=require` (and `channel_binding=require` when present).
 
@@ -71,6 +71,8 @@ streamlit run app.py
 **Cards** — **Manage** tab: filter open cards by list, due date range, label, and assignee; edit/move/delete one card, or multi-select and mass-delete with confirmation. **Import** tab: upload a `.xlsx` file, preview tasks, then **Dry run** or **Create cards**.
 
 **Labels** — detailed label breakdown by list, plus create/rename/recolor/delete. The Excel `Labels` column uses label names; any name not already on the board is created automatically during import.
+
+**Connection** — signed-in users can add, edit, and delete named Trello connections (name, API key, token, board ID, list ID). Connections are stored per account in Neon; the sidebar picks the active connection. `.env` values remain the defaults/fallback when none are saved.
 
 ## CLI
 
