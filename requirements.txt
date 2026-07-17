@@ -6,3 +6,4 @@ python-dotenv
 streamlit
 psycopg[binary]
 resend>=2.21.0
+cryptography

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from clients import NeonClient
+from functions.crypto import CryptoError, decrypt_secret, encrypt_secret
 from functions.env import env
 from services.auth import AuthError
 from services.neon import connected_neon_client
@@ -32,12 +33,24 @@ def _client() -> NeonClient:
     return client
 
 
+def _encrypt_secrets(api_key: str, token: str) -> tuple[str, str]:
+    try:
+        return encrypt_secret(api_key), encrypt_secret(token)
+    except CryptoError as exc:
+        raise AuthError(str(exc)) from exc
+
+
 def _normalize(row: dict[str, Any]) -> dict[str, Any]:
+    try:
+        api_key = decrypt_secret(str(row.get("api_key") or ""))
+        token = decrypt_secret(str(row.get("token") or ""))
+    except CryptoError as exc:
+        raise AuthError(str(exc)) from exc
     return {
         "id": row["id"],
         "name": str(row.get("name") or "").strip(),
-        "api_key": str(row.get("api_key") or "").strip(),
-        "token": str(row.get("token") or "").strip(),
+        "api_key": api_key.strip(),
+        "token": token.strip(),
         "board_id": str(row.get("board_id") or "").strip(),
         "list_id": str(row.get("list_id") or "").strip(),
     }
@@ -68,12 +81,13 @@ def create_trello_connection(
         raise AuthError("Connection name is required.")
     if not api_key.strip() or not token.strip() or not board_id.strip():
         raise AuthError("API key, token, and board ID are required.")
+    enc_key, enc_token = _encrypt_secrets(api_key.strip(), token.strip())
     return _normalize(
         _client().create_trello_connection(
             user_id=user_id,
             name=name,
-            api_key=api_key.strip(),
-            token=token.strip(),
+            api_key=enc_key,
+            token=enc_token,
             board_id=board_id.strip(),
             list_id=list_id.strip(),
         )
@@ -95,12 +109,13 @@ def update_trello_connection(
         raise AuthError("Connection name is required.")
     if not api_key.strip() or not token.strip() or not board_id.strip():
         raise AuthError("API key, token, and board ID are required.")
+    enc_key, enc_token = _encrypt_secrets(api_key.strip(), token.strip())
     row = _client().update_trello_connection(
         user_id=user_id,
         connection_id=connection_id,
         name=name,
-        api_key=api_key.strip(),
-        token=token.strip(),
+        api_key=enc_key,
+        token=enc_token,
         board_id=board_id.strip(),
         list_id=list_id.strip(),
     )
