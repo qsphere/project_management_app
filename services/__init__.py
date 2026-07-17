@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from services.auth import AuthError, create_account, sign_in
 from services.excel import (
     excel_template_bytes,
     read_sheet_names,
@@ -25,8 +26,10 @@ from services.trello import (
 )
 
 __all__ = [
+    "AuthError",
     "connected_client",
     "connected_neon_client",
+    "create_account",
     "create_label",
     "delete_card",
     "delete_cards",
@@ -41,6 +44,7 @@ __all__ = [
     "read_sheet_names",
     "read_tasks",
     "run_import",
+    "sign_in",
     "update_card",
     "update_label",
 ]

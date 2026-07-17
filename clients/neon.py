@@ -55,5 +55,43 @@ class NeonClient:
         row = self.execute_one("SELECT 1 AS ok")
         return bool(row and row.get("ok") == 1)
 
+    def ensure_users_table(self) -> None:
+        self.execute(
+            """
+            CREATE TABLE IF NOT EXISTS app_users (
+                id BIGSERIAL PRIMARY KEY,
+                full_name TEXT NOT NULL,
+                email TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """
+        )
+
+    def create_user(
+        self, *, full_name: str, email: str, password_hash: str
+    ) -> dict[str, Any]:
+        row = self.execute_one(
+            """
+            INSERT INTO app_users (full_name, email, password_hash)
+            VALUES (%s, %s, %s)
+            RETURNING id, full_name, email
+            """,
+            (full_name, email, password_hash),
+        )
+        if row is None:
+            raise RuntimeError("Failed to create user")
+        return row
+
+    def get_user_by_email(self, email: str) -> dict[str, Any] | None:
+        return self.execute_one(
+            """
+            SELECT id, full_name, email, password_hash
+            FROM app_users
+            WHERE email = %s
+            """,
+            (email,),
+        )
+
 
 __all__ = ["NeonClient"]
