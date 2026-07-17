@@ -6,7 +6,7 @@ Guidance for AI agents working in this project. Prefer this file over generic ad
 
 Small Python tool that creates and manages Trello cards from Excel, plus a Streamlit UI with an initiative dashboard.
 
-- **Clients (strict external I/O):** `clients/` — only package that may call remote APIs or the DB (`requests` → Trello; `psycopg` → Neon)
+- **Clients (strict external I/O):** `clients/` — only package that may call remote APIs or the DB (`requests` → Trello; `psycopg` → Neon; `resend` → Resend email)
 - **Constants:** `constants/` — static data only (palettes, page lists, CSS, Excel aliases, status heuristics)
 - **Helpers:** `functions/` — pure helpers and domain builders (no Streamlit, no raw HTTP)
 - **Orchestration:** `services/` — thin wrappers over clients + domain (no Streamlit, no raw HTTP)
@@ -49,7 +49,8 @@ trello_from_excel/
 │   ├── trello_board.py         # lists / cards reads / members / resolve ids
 │   ├── trello_labels.py        # label CRUD + resolve/create missing
 │   ├── trello_cards.py         # card create / update / delete
-│   └── neon.py                 # Neon Postgres (psycopg) — sole DB surface
+│   ├── neon.py                 # Neon Postgres (psycopg) — sole DB surface
+│   └── resend.py               # Resend email API — sole email surface
 ├── constants/                  # STRICT: sole place for static constants
 │   ├── pages.py                # PAGES = Dashboard, Cards, Labels
 │   ├── colors.py               # COLOR_SWATCH, LABEL_COLORS, PALETTE_HUES
@@ -69,6 +70,8 @@ trello_from_excel/
 ├── services/                  # orchestration (no Streamlit, no raw HTTP/DB)
 │   ├── trello.py               # TrelloClient wrappers (connect, cards, labels, dashboards)
 │   ├── neon.py                 # NeonClient wrappers (connect, ping)
+│   ├── auth.py                 # account create / sign-in (Neon + welcome email)
+│   ├── email.py                # ResendClient wrappers (welcome email)
 │   ├── excel.py                # process_tasks / UI import helpers
 │   └── __init__.py             # re-exports
 ├── trello_cli.py               # CLI entry only (Excel import)
@@ -158,14 +161,14 @@ Prefer extending `COLUMN_ALIASES` over one-off column handling in the UI.
 ## Architecture rules
 
 1. **`ui/` is Streamlit-only:** Every non-empty module under `ui/` must use Streamlit. Pure helpers → `functions/`; constants → `constants/`; orchestration → `services/`; HTTP → `clients/`. Enforce with `python scripts/check_app_streamlit_only.py`.
-2. **Strict clients package:** Only `clients/` may perform external HTTP or DB I/O. All Trello calls go through `TrelloClient` (`_get` / `_post` / `_put` / `_delete` in `clients/http.py`). All Postgres goes through `NeonClient` (`clients/neon.py`). Do not import `requests` or `psycopg` from `ui/`, `services/`, `functions/`, or `trello_cli.py`.
+2. **Strict clients package:** Only `clients/` may perform external HTTP or DB I/O. All Trello calls go through `TrelloClient` (`_get` / `_post` / `_put` / `_delete` in `clients/http.py`). All Postgres goes through `NeonClient` (`clients/neon.py`). All Resend email goes through `ResendClient` (`clients/resend.py`). Do not import `requests`, `psycopg`, or `resend` from `ui/`, `services/`, `functions/`, or `trello_cli.py`.
 3. **Strict constants package:** Static constants live only under `constants/`. Do not add constant modules under `clients/`, `functions/`, `services/`, or `ui/`; import from `constants`.
-4. **`services/` is orchestration, not HTTP/DB:** It orchestrates `clients.TrelloClient` / `clients.NeonClient` + `functions` helpers. Do not reimplement Trello or SQL there.
+4. **`services/` is orchestration, not HTTP/DB:** It orchestrates `clients.TrelloClient` / `clients.NeonClient` / `clients.ResendClient` + `functions` helpers. Do not reimplement Trello, SQL, or Resend there.
 5. **Caches:** `lists_by_name`, `labels_by_name`, `members_by_name` are lazy. Invalidate label cache after create/update/delete (see `_invalidate_labels_cache`).
 6. **Import path:** UI and CLI both use `load_tasks` → `process_tasks` (`functions/excel.py` → `services/excel.py`). Preserve dry-run behavior.
 7. **Dashboard path:** `build_initiative_dashboard` / `build_label_dashboard` own the data shape; `ui/views/dashboard.py` and `ui/component/` only chart and lay out.
 8. **Types:** Prefer `from __future__ import annotations` and explicit return types on new public functions.
-9. **Dependencies:** Stick to `requirements.txt` (pandas, openpyxl, requests, python-dotenv, streamlit, psycopg). Add Altair only if the UI already imports it for charts.
+9. **Dependencies:** Stick to `requirements.txt` (pandas, openpyxl, requests, python-dotenv, streamlit, psycopg, resend). Add Altair only if the UI already imports it for charts.
 10. **File length:** Every project `.py` file ≤ 250 lines. Split by responsibility before finishing; do not minify to dodge the limit.
 
 ## UI pages

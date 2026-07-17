@@ -12,6 +12,7 @@ from functions.auth import (
     validate_sign_in,
     verify_password,
 )
+from services.email import send_account_deleted_email, send_welcome_email
 from services.neon import connected_neon_client
 
 
@@ -52,7 +53,13 @@ def create_account(
         email=email_norm,
         password_hash=hash_password(password),
     )
-    return _public_user(row)
+    user = _public_user(row)
+    send_welcome_email(
+        user_id=user["id"],
+        full_name=user["full_name"],
+        email=user["email"],
+    )
+    return user
 
 
 def sign_in(*, email: str, password: str) -> dict[str, Any]:
@@ -61,9 +68,28 @@ def sign_in(*, email: str, password: str) -> dict[str, Any]:
         raise AuthError(err)
     client = _client()
     row = client.get_user_by_email(normalize_email(email))
-    if row is None or not verify_password(password, row["password_hash"]):
-        raise AuthError("Invalid email or password.")
+    if row is None:
+        raise AuthError(
+            "No account found for this email. Switch to Create account to register."
+        )
+    if not verify_password(password, row["password_hash"]):
+        raise AuthError(
+            "There was an error with your email or password, "
+            "check the fields and try again."
+        )
     return _public_user(row)
 
 
-__all__ = ["AuthError", "create_account", "sign_in"]
+def delete_account(*, user_id: int | str) -> None:
+    client = _client()
+    deleted = client.delete_user(user_id)
+    if deleted is None:
+        raise AuthError("Account could not be deleted. It may already be gone.")
+    send_account_deleted_email(
+        user_id=deleted["id"],
+        full_name=deleted["full_name"],
+        email=deleted["email"],
+    )
+
+
+__all__ = ["AuthError", "create_account", "delete_account", "sign_in"]

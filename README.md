@@ -37,10 +37,14 @@ cp .env.example .env
 | `TRELLO_BOARD_ID` | Yes* | Default board ID |
 | `TRELLO_LIST_ID` | No | Default list when a row has no `List` value |
 | `DATABASE_URL` | No* | Neon Postgres connection string (*needed for DB features; prefer pooled URL) |
+| `RESEND_API_KEY` | No* | Resend API key (*needed to email users on account creation) |
+| `RESEND_FROM_EMAIL` | No | From address; defaults to `Project Management <onboarding@resend.dev>` |
 
 \*Board ID can also be passed with `--board-id` on the CLI, or entered in the UI.
 
 Get `DATABASE_URL` from the [Neon Console](https://console.neon.tech/) → your project → **Connect**. Keep `sslmode=require` (and `channel_binding=require` when present).
+
+Get `RESEND_API_KEY` from [Resend API keys](https://resend.com/api-keys). The default `onboarding@resend.dev` sender only delivers to your Resend account email; verify your own domain for production.
 
 ## Excel format
 
