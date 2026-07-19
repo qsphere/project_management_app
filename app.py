@@ -13,11 +13,10 @@ Streamlit adds this file's directory (project root) to sys.path, so
 from __future__ import annotations
 
 import streamlit as st
-from dotenv import load_dotenv
 
 from constants.pages import PAGES
 from constants.styles import NAV_CSS
-from functions.env import SCRIPT_DIR
+from functions.env import load_secrets
 from ui.component.auth import current_user, render_auth_bar
 from ui.component.no_connection import render_no_connection_empty
 from ui.component.sidebar import render_sidebar
@@ -30,7 +29,9 @@ from ui.views.dashboard import render_dashboard_page
 from ui.views.labels import render_labels_page
 from ui.views.settings import render_settings_page
 
-load_dotenv(SCRIPT_DIR / ".env")
+# Shared with CLI: root keys from .streamlit/secrets.toml → os.environ.
+# Streamlit also exposes them via st.secrets when the app runs.
+load_secrets()
 
 st.set_page_config(
     page_title="Initiative Dashboard",
@@ -95,7 +96,8 @@ if page == "Dashboard":
     elif client is None:
         st.info(
             "Connect with API key, token, and board ID on the Settings "
-            "page (or in `.env`) to view the initiative dashboard."
+            "page (or in `.streamlit/secrets.toml`) to view the "
+            "initiative dashboard."
         )
     else:
         render_dashboard_page(client)
@@ -118,7 +120,7 @@ elif page == "Labels" and signed_in:
     elif client is None:
         st.info(
             "Connect with API key, token, and board ID on the Settings "
-            "page (or in `.env`) to manage labels."
+            "page (or in `.streamlit/secrets.toml`) to manage labels."
         )
     else:
         render_labels_page(client)

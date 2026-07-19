@@ -12,7 +12,7 @@ from .dates import (
     parse_trello_date,
     trello_id_created_at,
 )
-from .env import SCRIPT_DIR, env
+from .env import SCRIPT_DIR, SECRETS_PATH, env, load_secrets
 from .excel import (
     build_excel_template,
     cell_str,
@@ -44,7 +44,9 @@ __all__ = [
     "parse_trello_date",
     "trello_id_created_at",
     "SCRIPT_DIR",
+    "SECRETS_PATH",
     "env",
+    "load_secrets",
     "build_excel_template",
     "cell_str",
     "list_sheet_names",

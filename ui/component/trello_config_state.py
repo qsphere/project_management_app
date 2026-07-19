@@ -41,7 +41,7 @@ def _empty_credentials() -> dict[str, str]:
 def set_active_connection(conn: dict | None) -> None:
     if conn is None:
         st.session_state.pop(_ACTIVE_ID_KEY, None)
-        # Signed-in users must use a saved connection; do not fall back to .env.
+        # Signed-in users must use a saved connection; do not fall back to secrets.
         if st.session_state.get(_AUTH_USER_KEY) is not None:
             st.session_state[_ACTIVE_CREDS_KEY] = _empty_credentials()
         else:
@@ -52,7 +52,7 @@ def set_active_connection(conn: dict | None) -> None:
 
 
 def sync_trello_config_session() -> dict[str, str]:
-    """Resolve active credentials from saved connections or .env."""
+    """Resolve active credentials from saved connections or secrets."""
     defaults = env_trello_config()
     user = st.session_state.get(_AUTH_USER_KEY)
     if user is None:
@@ -62,7 +62,7 @@ def sync_trello_config_session() -> dict[str, str]:
     try:
         connections = list_trello_connections(user["id"])
     except Exception:
-        # Signed-in: no Neon connections available → empty, not .env.
+        # Signed-in: no Neon connections available → empty, not secrets.
         set_active_connection(None)
         return dict(st.session_state[_ACTIVE_CREDS_KEY])
 

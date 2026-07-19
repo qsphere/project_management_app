@@ -24,10 +24,11 @@ pip install -r requirements.txt
 
 ## Configure credentials
 
-Copy the example env file and fill in your values:
+Copy the example secrets file and fill in your values ([Streamlit secrets](https://docs.streamlit.io/develop/concepts/connections/secrets-management)):
 
 ```bash
-cp .env.example .env
+mkdir -p .streamlit
+cp .streamlit/secrets.toml.example .streamlit/secrets.toml
 ```
 
 | Variable | Required | Description |
@@ -37,6 +38,7 @@ cp .env.example .env
 | `TRELLO_BOARD_ID` | Yes* | Default board ID |
 | `TRELLO_LIST_ID` | No | Default list when a row has no `List` value |
 | `DATABASE_URL` | No* | Neon Postgres connection string (*needed for DB features; prefer pooled URL) |
+| `CREDENTIALS_ENCRYPTION_KEY` | No* | Fernet key to encrypt saved Trello credentials (*needed for Connections) |
 | `RESEND_API_KEY` | No* | Resend API key (*needed to email users on account creation) |
 | `RESEND_FROM_EMAIL` | No | From address; defaults to `Project Management <onboarding@resend.dev>` |
 
@@ -45,6 +47,8 @@ cp .env.example .env
 Get `DATABASE_URL` from the [Neon Console](https://console.neon.tech/) → your project → **Connect**. Keep `sslmode=require` (and `channel_binding=require` when present).
 
 Get `RESEND_API_KEY` from [Resend API keys](https://resend.com/api-keys). The default `onboarding@resend.dev` sender only delivers to your Resend account email; verify your own domain for production.
+
+Do not commit `.streamlit/secrets.toml`.
 
 ## Excel format
 
@@ -72,7 +76,7 @@ streamlit run app.py
 
 **Labels** — detailed label breakdown by list, plus create/rename/recolor/delete. The Excel `Labels` column uses label names; any name not already on the board is created automatically during import.
 
-**Settings** — **Connections**: signed-in users add, edit, and delete named Trello connections (name, API key, token, board ID, list ID), stored per account in Neon; the sidebar picks the active connection. `.env` values remain the defaults/fallback. **Configuration**: map each taxonomy dimension (status, feature, initiative, or custom) to one Trello field (cards, lists, labels, or boards), with unmapped show/exclude policy and JSON export/import (personal workspace spanning all of the user’s connections).
+**Settings** — **Connections**: signed-in users add, edit, and delete named Trello connections (name, API key, token, board ID, list ID), stored per account in Neon; the sidebar picks the active connection. Values in `.streamlit/secrets.toml` remain the defaults/fallback. **Configuration**: map each taxonomy dimension (status, feature, initiative, or custom) to one Trello field (cards, lists, labels, or boards), with unmapped show/exclude policy and JSON export/import (personal workspace spanning all of the user’s connections).
 
 ## CLI
 
@@ -89,4 +93,4 @@ python trello_cli.py tasks.xlsx
 python trello_cli.py tasks.xlsx --sheet "Sheet1" --board-id BOARD_ID --list-id LIST_ID
 ```
 
-CLI flags override values from `.env` when provided.
+CLI flags override values from `.streamlit/secrets.toml` when provided.

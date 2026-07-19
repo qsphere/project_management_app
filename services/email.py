@@ -35,7 +35,8 @@ def send_welcome_email(*, user_id: int | str, full_name: str, email: str) -> Non
     client = connected_resend_client()
     if client is None:
         logger.warning(
-            "Skipping welcome email: set RESEND_API_KEY in .env to enable email."
+            "Skipping welcome email: set RESEND_API_KEY in "
+            ".streamlit/secrets.toml to enable email."
         )
         return
     name = escape((full_name or "").strip() or "there")
@@ -63,7 +64,8 @@ def send_account_deleted_email(
     client = connected_resend_client()
     if client is None:
         logger.warning(
-            "Skipping account-deleted email: set RESEND_API_KEY in .env "
+            "Skipping account-deleted email: set RESEND_API_KEY in "
+            ".streamlit/secrets.toml "
             "to enable email."
         )
         return
