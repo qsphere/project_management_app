@@ -22,19 +22,17 @@ The connected board is interpreted as:
 
 | Trello concept | App meaning |
 | --- | --- |
-| **Label** | Initiative |
+| **Label** (default) | Initiative (grouping; configurable to Lists) |
 | **Card** | Task |
-| **List name** | Status (via keyword heuristics) |
+| **Card flags** | Status via derived `lifecycleStatus` (not list names) |
 
-Status buckets from `classify_list_status()` (`functions/status.py`; regexes in `constants/status.py`):
+Dashboard Status is always derived `lifecycleStatus` from `compute_lifecycle_status()` (`functions/status.py`), recomputed on every sync (never stored). Precedence (first match wins):
 
-- **Archived** — card `closed` or list name matches archive keywords
-- **Done** — done / complete / closed / shipped / finished
-- **Blocked** — block / blocked / waiting / on hold / stuck
-- **In Progress** — progress / doing / wip / active / review / qa / testing
-- **To Do** — everything else
+- **ARCHIVED** — `closed == true`
+- **CLOSED** — `closed == false` and due is set and `dueComplete == true`
+- **OPEN** — otherwise (including cards with no due date)
 
-Changing those regexes changes dashboard semantics for every board. Document why if you edit them.
+Lists are not used for Status. Initiative grouping still follows Settings → Configuration `maps_to` (Labels or Lists).
 
 ## Layout
 
@@ -50,29 +48,34 @@ trello_from_excel/
 │   ├── trello_labels.py        # label CRUD + resolve/create missing
 │   ├── trello_cards.py         # card create / update / delete
 │   ├── neon.py                 # Neon Postgres (psycopg) — sole DB surface
+│   ├── neon_entity.py          # entity configuration table mixin
 │   └── resend.py               # Resend email API — sole email surface
 ├── constants/                  # STRICT: sole place for static constants
-│   ├── pages.py                # PAGES = Dashboard, Cards, Labels, Connection
+│   ├── pages.py                # PAGES = Dashboard, Cards, Labels, Settings
 │   ├── colors.py               # COLOR_SWATCH, LABEL_COLORS, PALETTE_HUES
 │   ├── styles.py               # NAV_CSS, CONNECTIONS_CSS, DASHBOARD_CSS
+│   ├── config_styles.py        # CONFIGURATION_CSS
+│   ├── entity_config.py        # default Initiative→Labels, Status→Lists
 │   ├── links.py                # Trello guide, GitHub, privacy URLs
 │   ├── excel.py                # COLUMN_ALIASES, TEMPLATE_COLUMNS
-│   └── status.py               # LIST_PALETTE, STATUS_*, status regexes
+│   └── status.py               # LIST_PALETTE, LIFECYCLE_* buckets/colors
 ├── functions/                  # pure helpers + domain (no Streamlit)
 │   ├── env.py                  # env(), SCRIPT_DIR
 │   ├── dates.py                # card/Excel/Trello date parse/format
 │   ├── cards.py                # card choice labels + filter_cards
 │   ├── charts.py               # Altair burndown/donut + status legend HTML
-│   ├── status.py               # classify_list_status
+│   ├── status.py               # compute_lifecycle_status
 │   ├── excel.py                # load/normalize Excel, template bytes
 │   ├── label_dashboard.py      # build_label_dashboard
 │   ├── burndown.py             # card_lifecycle + build_burndown_series
+│   ├── dashboard_breakdown.py  # lifecycle pie breakdown helpers
 │   └── initiative_dashboard.py # build_initiative_dashboard
 ├── services/                  # orchestration (no Streamlit, no raw HTTP/DB)
 │   ├── trello.py               # TrelloClient wrappers (connect, cards, labels, dashboards)
 │   ├── neon.py                 # NeonClient wrappers (connect, ping)
 │   ├── auth.py                 # account create / sign-in (Neon + welcome email)
 │   ├── config.py               # named Trello connections CRUD (Neon)
+│   ├── entity_config.py        # Initiative/Status configs CRUD + dashboard maps
 │   ├── email.py                # ResendClient wrappers (welcome email)
 │   ├── excel.py                # process_tasks / UI import helpers
 │   └── __init__.py             # re-exports
@@ -80,19 +83,22 @@ trello_from_excel/
 ├── app.py                      # Streamlit entry: config, nav, sidebar, page dispatch
 ├── ui/                         # STRICT: Streamlit-only UI package
 │   ├── views/
-│   │   ├── dashboard.py        # initiative dashboard page
+│   │   ├── dashboard.py        # initiative dashboard (config-driven)
 │   │   ├── cards.py            # Cards page shell (Manage + Import tabs)
 │   │   ├── labels.py           # Labels page
-│   │   └── connections.py      # Connection page (signed-in only)
+│   │   ├── settings.py         # Settings page (Connections + Configuration tabs)
 │   ├── tabs/
 │   │   ├── manage.py           # Cards → Manage (filters, table, edit)
-│   │   └── import_cards.py     # Cards → Import (upload, preview, create)
+│   │   ├── import_cards.py     # Cards → Import (upload, preview, create)
+│   │   ├── settings_connections.py  # Settings → Connections
+│   │   └── configuration.py    # Settings → Configuration
 │   └── component/
 │       ├── sidebar.py          # active connection + create delay
 │       ├── auth.py             # sign-in / manage account
 │       ├── trello_config_state.py  # session helpers for active connection
 │       ├── connection_dialog.py    # add/edit connection modal
 │       ├── connection_list.py      # connection cards + empty state
+│       ├── configuration_dialog.py # edit entity configuration modal
 │       ├── footer.py               # page footer
 │       ├── initiative_card.py  # one initiative card on Dashboard
 │       ├── color_selector.py   # label color palette + dashboard CSS inject
@@ -144,7 +150,7 @@ CLI flags override `.env` when provided (`--board-id`, `--list-id`, `--sheet`).
 | `TRELLO_LIST_ID` | No | Default list when a row has no List |
 | `DATABASE_URL` | No* | Neon Postgres URL (*required for DB features; prefer pooled `-pooler` host) |
 
-Auth is always query params `key` + `token` on `https://api.trello.com/1`. Never log full request URLs or params that include secrets. `clients.http.raise_for_status` exists specifically to avoid leaking credentials in error messages — keep that property. Never log `DATABASE_URL`. Signed-in users can save multiple named Trello connections on the Connection page (`app_trello_connections` in Neon); `.env` remains the default/fallback.
+Auth is always query params `key` + `token` on `https://api.trello.com/1`. Never log full request URLs or params that include secrets. `clients.http.raise_for_status` exists specifically to avoid leaking credentials in error messages — keep that property. Never log `DATABASE_URL`. Signed-in users can save multiple named Trello connections on Settings → Connections (`app_trello_connections` in Neon) and Initiative/Status entity configs on Settings → Configuration (`app_entity_configurations`; maps_to is Lists or Labels). Initiative `maps_to` drives Dashboard grouping; Status chart slices always use derived `lifecycleStatus` (OPEN/CLOSED/ARCHIVED), independent of Status `maps_to`. Unsigned users get the defaults (Initiative → Labels, Status → Lists). `.env` remains the default/fallback for Trello credentials.
 
 Authorize a token (replace `YOUR_KEY`):
 `https://trello.com/1/authorize?expiration=never&scope=read,write&response_type=token&name=TrelloBoardTools&key=YOUR_KEY`
@@ -169,7 +175,7 @@ Prefer extending `COLUMN_ALIASES` over one-off column handling in the UI.
 ## Architecture rules
 
 1. **`ui/` is Streamlit-only:** Every non-empty module under `ui/` must use Streamlit. Pure helpers → `functions/`; constants → `constants/`; orchestration → `services/`; HTTP → `clients/`. Enforce with `python scripts/check_app_streamlit_only.py`.
-2. **Strict clients package:** Only `clients/` may perform external HTTP or DB I/O. All Trello calls go through `TrelloClient` (`_get` / `_post` / `_put` / `_delete` in `clients/http.py`). All Postgres goes through `NeonClient` (`clients/neon.py`). All Resend email goes through `ResendClient` (`clients/resend.py`). Do not import `requests`, `psycopg`, or `resend` from `ui/`, `services/`, `functions/`, or `trello_cli.py`.
+2. **Strict clients package:** Only `clients/` may perform external HTTP or DB I/O. All Trello calls go through `TrelloClient` (`_get` / `_post` / `_put` / `_delete` in `clients/http.py`). All Postgres goes through `NeonClient` (`clients/neon.py` and mixins such as `clients/neon_entity.py`). All Resend email goes through `ResendClient` (`clients/resend.py`). Do not import `requests`, `psycopg`, or `resend` from `ui/`, `services/`, `functions/`, or `trello_cli.py`.
 3. **Strict constants package:** Static constants live only under `constants/`. Do not add constant modules under `clients/`, `functions/`, `services/`, or `ui/`; import from `constants`.
 4. **`services/` is orchestration, not HTTP/DB:** It orchestrates `clients.TrelloClient` / `clients.NeonClient` / `clients.ResendClient` + `functions` helpers. Do not reimplement Trello, SQL, or Resend there.
 5. **Caches:** `lists_by_name`, `labels_by_name`, `members_by_name` are lazy. Invalidate label cache after create/update/delete (see `_invalidate_labels_cache`).
@@ -183,12 +189,12 @@ Prefer extending `COLUMN_ALIASES` over one-off column handling in the UI.
 
 `app.py` dispatches; sidebar is `ui/component/sidebar.py`. Main nav (`constants/pages.py`):
 
-1. **Dashboard** (`ui/views/dashboard.py`) — initiative burndown / status (needs connected client)
+1. **Dashboard** (`ui/views/dashboard.py`) — initiative burndown / lifecycle status (needs connected client)
 2. **Cards** (`ui/views/cards.py`) — Manage tab (`ui/tabs/manage.py`: filters, edit/move/delete, mass delete) and Import tab (`ui/tabs/import_cards.py`: upload `.xlsx`, preview, dry-run or create)
 3. **Labels** (`ui/views/labels.py`) — breakdown + CRUD + color palette
-4. **Connection** (`ui/views/connections.py`) — named Trello connections (add/edit/delete modal; signed-in only; Neon `app_trello_connections`)
+4. **Settings** (`ui/views/settings.py`) — **Connections** tab (`ui/tabs/settings_connections.py`; Neon `app_trello_connections`) and **Configuration** tab (`ui/tabs/configuration.py`; Neon `app_entity_configurations` for Initiative/Status maps_to Lists|Labels; signed-in only; Initiative maps_to drives Dashboard grouping; Status pies use lifecycleStatus)
 
-When adding a page: register it in `PAGES` (`constants/pages.py`), add `ui/views/<name>.py`, wire the nav in `app.py`, and gate on `client is None` like the others (Connection gates on signed-in user instead).
+When adding a page: register it in `PAGES` (`constants/pages.py`), add `ui/views/<name>.py`, wire the nav in `app.py`, and gate on `client is None` like the others (Settings gates on signed-in user instead).
 
 ## Safety
 
@@ -201,4 +207,4 @@ When adding a page: register it in `PAGES` (`constants/pages.py`), add `ui/views
 
 - **New card fields:** extend `COLUMN_ALIASES` (`constants/excel.py`), `process_tasks` (`services/excel.py`), and `TrelloClient.create_card` / `update_card` together; update README.
 - **New dashboard metric:** compute in `functions/initiative_dashboard.py` (or related helpers), render in `ui/views/dashboard.py` / related components.
-- **Status keywords:** update the regexes in `constants/status.py` and README status notes.
+- **Lifecycle status:** update `compute_lifecycle_status` (`functions/status.py`), `LIFECYCLE_*` (`constants/status.py`), and README status notes together.

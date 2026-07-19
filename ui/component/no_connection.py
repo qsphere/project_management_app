@@ -43,7 +43,7 @@ _EMPTY_STATES = {
 
 
 def go_to_add_connection() -> None:
-    st.session_state.main_nav = "Connection"
+    st.session_state.main_nav = "Settings"
     open_add_connection_dialog()
 
 

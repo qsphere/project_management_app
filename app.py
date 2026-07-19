@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Streamlit UI entry: initiative dashboard, cards, labels, and connection.
+Streamlit UI entry: initiative dashboard, cards, labels, and settings.
 
 Run from the project root:
   streamlit run app.py
@@ -26,9 +26,9 @@ from ui.component.trello_config_state import (
     sync_trello_config_session,
 )
 from ui.views.cards import render_cards_page
-from ui.views.connections import render_connections_page
 from ui.views.dashboard import render_dashboard_page
 from ui.views.labels import render_labels_page
+from ui.views.settings import render_settings_page
 
 load_dotenv(SCRIPT_DIR / ".env")
 
@@ -58,8 +58,12 @@ if "main_nav" not in st.session_state:
 # Migrate sessions that still have old nav values.
 elif st.session_state.main_nav == "Import cards":
     st.session_state.main_nav = "Cards"
-elif st.session_state.main_nav in ("Configuration", "Connections"):
-    st.session_state.main_nav = "Connection"
+elif st.session_state.main_nav in (
+    "Configuration",
+    "Connections",
+    "Connection",
+):
+    st.session_state.main_nav = "Settings"
 
 nav_col, auth_col = st.columns([5, 2], vertical_alignment="center")
 with nav_col:
@@ -80,7 +84,7 @@ if page == "Dashboard":
         render_no_connection_empty("Dashboard")
     elif client is None:
         st.info(
-            "Connect with API key, token, and board ID on the Connection "
+            "Connect with API key, token, and board ID on the Settings "
             "page (or in `.env`) to view the initiative dashboard."
         )
     else:
@@ -103,10 +107,10 @@ elif page == "Labels":
         render_no_connection_empty("Labels")
     elif client is None:
         st.info(
-            "Connect with API key, token, and board ID on the Connection "
+            "Connect with API key, token, and board ID on the Settings "
             "page (or in `.env`) to manage labels."
         )
     else:
         render_labels_page(client)
-elif page == "Connection":
-    render_connections_page()
+elif page == "Settings":
+    render_settings_page()

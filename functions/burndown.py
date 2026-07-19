@@ -3,33 +3,25 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
+from constants.status import LIFECYCLE_ARCHIVED, LIFECYCLE_CLOSED
 from functions.dates import parse_trello_date, trello_id_created_at
-from functions.status import classify_list_status
+from functions.status import compute_lifecycle_status
 
 
-def is_complete_status(status: str) -> bool:
-    return status in {"Done", "Archived"}
+def is_complete_lifecycle(lifecycle_status: str) -> bool:
+    return lifecycle_status in {LIFECYCLE_CLOSED, LIFECYCLE_ARCHIVED}
 
 
-def card_lifecycle(
-    card: dict[str, Any],
-    list_names: dict[str, str],
-) -> dict[str, Any]:
-    """Derive list name, completion, and dates for one card."""
-    closed = bool(card.get("closed"))
-    list_id = card.get("idList") or ""
-    list_name = (list_names.get(list_id) or "").strip()
-    if not list_name:
-        list_name = "Archived" if closed else "Unknown list"
-    status = classify_list_status(list_name, closed=closed)
+def card_lifecycle(card: dict[str, Any]) -> dict[str, Any]:
+    """Derive lifecycleStatus, completion, and dates for one card (no list status)."""
+    lifecycle_status = compute_lifecycle_status(card)
+    complete = is_complete_lifecycle(lifecycle_status)
     created = trello_id_created_at(str(card.get("id") or ""))
     created_day = created.date() if created else None
     start_day = parse_trello_date(card.get("start")) or created_day
     due_day = parse_trello_date(card.get("due"))
     activity_day = parse_trello_date(card.get("dateLastActivity"))
 
-    # Complete = Done/Archived lists (or closed cards) only — not dueComplete alone.
-    complete = is_complete_status(status)
     completed_day: date | None = None
     if complete:
         # Prefer due date when marked complete; otherwise last activity / today.
@@ -37,8 +29,7 @@ def card_lifecycle(
         completed_day = completed_day or activity_day or due_day or date.today()
 
     return {
-        "list_name": list_name,
-        "status": status,
+        "lifecycleStatus": lifecycle_status,
         "start_day": start_day,
         "due_day": due_day,
         "created_day": created_day,

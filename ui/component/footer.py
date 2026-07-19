@@ -1,5 +1,4 @@
-"""Footer for the Connection page."""
-
+"""Footer for Settings and related pages."""
 from __future__ import annotations
 
 import streamlit as st

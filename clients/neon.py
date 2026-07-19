@@ -12,8 +12,10 @@ from typing import Any, Iterator, Sequence
 import psycopg
 from psycopg.rows import dict_row
 
+from clients.neon_entity import NeonEntityConfigMixin
 
-class NeonClient:
+
+class NeonClient(NeonEntityConfigMixin):
     """Thin Postgres wrapper. All SQL goes through this client."""
 
     def __init__(self, database_url: str):
