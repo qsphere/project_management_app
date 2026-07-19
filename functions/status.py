@@ -1,19 +1,25 @@
 from __future__ import annotations
 
-from constants.status import ARCHIVE_RE, BLOCKED_RE, DONE_RE, PROGRESS_RE
+from typing import Any
+
+from constants.status import (
+    LIFECYCLE_ARCHIVED,
+    LIFECYCLE_CLOSED,
+    LIFECYCLE_OPEN,
+)
 
 
-def classify_list_status(list_name: str, *, closed: bool = False) -> str:
-    """Map a Trello list name (and closed flag) to a dashboard status bucket."""
-    if closed:
-        return "Archived"
-    name = (list_name or "").strip()
-    if ARCHIVE_RE.search(name):
-        return "Archived"
-    if DONE_RE.search(name):
-        return "Done"
-    if BLOCKED_RE.search(name):
-        return "Blocked"
-    if PROGRESS_RE.search(name):
-        return "In Progress"
-    return "To Do"
+def compute_lifecycle_status(card: dict[str, Any]) -> str:
+    """
+    Derive read-only lifecycleStatus from card flags (recomputed each sync).
+
+    Precedence (first match wins):
+    1. closed → ARCHIVED
+    2. due set and dueComplete → CLOSED
+    3. else → OPEN (including cards with no due date)
+    """
+    if card.get("closed"):
+        return LIFECYCLE_ARCHIVED
+    if card.get("due") and card.get("dueComplete"):
+        return LIFECYCLE_CLOSED
+    return LIFECYCLE_OPEN

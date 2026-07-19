@@ -64,7 +64,7 @@ def render_sidebar() -> tuple[
                 selected_list_id = default_list_id or None
         else:
             st.info(
-                "Add a Trello connection on the Connection page "
+                "Add a Trello connection on the Settings page "
                 "(sign in required), or set values in `.env`."
             )
 

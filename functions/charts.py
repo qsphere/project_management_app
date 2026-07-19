@@ -111,4 +111,4 @@ def status_legend_html(breakdown: list[dict]) -> str:
             f"({count})</span></span>"
             "</div>"
         )
-    return "".join(parts) or '<p class="dash-card-sub">No list data.</p>'
+    return "".join(parts) or '<p class="dash-card-sub">No status data.</p>'

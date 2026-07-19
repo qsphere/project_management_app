@@ -1,4 +1,4 @@
-from .burndown import build_burndown_series, card_lifecycle, is_complete_status
+from .burndown import build_burndown_series, card_lifecycle, is_complete_lifecycle
 from .cards import card_choice_label, filter_cards, unique_card_choices
 from .charts import burndown_chart, donut_chart, status_legend_html
 from .dates import (
@@ -22,12 +22,12 @@ from .excel import (
 )
 from .initiative_dashboard import build_initiative_dashboard, list_breakdown
 from .label_dashboard import build_label_dashboard
-from .status import classify_list_status
+from .status import compute_lifecycle_status
 
 __all__ = [
     "build_burndown_series",
     "card_lifecycle",
-    "is_complete_status",
+    "is_complete_lifecycle",
     "card_choice_label",
     "filter_cards",
     "unique_card_choices",
@@ -53,5 +53,5 @@ __all__ = [
     "build_initiative_dashboard",
     "list_breakdown",
     "build_label_dashboard",
-    "classify_list_status",
+    "compute_lifecycle_status",
 ]

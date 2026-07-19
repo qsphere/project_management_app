@@ -40,7 +40,7 @@ cp .env.example .env
 | `RESEND_API_KEY` | No* | Resend API key (*needed to email users on account creation) |
 | `RESEND_FROM_EMAIL` | No | From address; defaults to `Project Management <onboarding@resend.dev>` |
 
-\*Board ID can also be passed with `--board-id` on the CLI, or set on the **Connection** page after signing in.
+\*Board ID can also be passed with `--board-id` on the CLI, or set on the **Settings** page after signing in.
 
 Get `DATABASE_URL` from the [Neon Console](https://console.neon.tech/) → your project → **Connect**. Keep `sslmode=require` (and `channel_binding=require` when present).
 
@@ -66,13 +66,13 @@ source .venv/bin/activate
 streamlit run app.py
 ```
 
-**Dashboard** (home) — initiative view of the connected board: labels are initiatives, cards are tasks, and lists map to status (To Do / In Progress / Done / Blocked / Archived). Shows overall burndown, status percentages, and a card per label with completion % and burndown to target.
+**Dashboard** (home) — Filter by derived `lifecycleStatus` (default OPEN + CLOSED; ARCHIVED off until toggled). Group or filter by any configured taxonomy dimension; combine with lifecycle (e.g. OPEN + feature = Mobile). Initiative/feature rollups use dimension → Trello field mappings (raw names as values); completion % = (CLOSED + ARCHIVED) ÷ total mapped cards, so archived still count in rollups while staying hidden from the visible task list. Multi-label cards show every value for a labels-mapped dimension. Status pies use `lifecycleStatus` from card flags. Shows overall burndown, status percentages, rollup cards, and an expandable visible-task table.
 
 **Cards** — **Manage** tab: filter open cards by list, due date range, label, and assignee; edit/move/delete one card, or multi-select and mass-delete with confirmation. **Import** tab: upload a `.xlsx` file, preview tasks, then **Dry run** or **Create cards**.
 
 **Labels** — detailed label breakdown by list, plus create/rename/recolor/delete. The Excel `Labels` column uses label names; any name not already on the board is created automatically during import.
 
-**Connection** — signed-in users can add, edit, and delete named Trello connections (name, API key, token, board ID, list ID). Connections are stored per account in Neon; the sidebar picks the active connection. `.env` values remain the defaults/fallback when none are saved.
+**Settings** — **Connections**: signed-in users add, edit, and delete named Trello connections (name, API key, token, board ID, list ID), stored per account in Neon; the sidebar picks the active connection. `.env` values remain the defaults/fallback. **Configuration**: map each taxonomy dimension (status, feature, initiative, or custom) to one Trello field (cards, lists, labels, or boards), with unmapped show/exclude policy and JSON export/import (personal workspace spanning all of the user’s connections).
 
 ## CLI
 

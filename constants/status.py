@@ -1,8 +1,6 @@
-"""Status buckets, list palette, and list-name heuristics."""
+"""Lifecycle status buckets and pie palette."""
 
-import re
-
-# Fallback palette when pie slices are board list names (not fixed status buckets).
+# Fallback palette for generic name→count breakdowns (non-lifecycle).
 LIST_PALETTE = (
     "#7DD3FC",
     "#FB923C",
@@ -18,21 +16,15 @@ LIST_PALETTE = (
     "#4ADE80",
 )
 
-# Kept for classify_list_status / burndown completion heuristics.
-STATUS_ORDER = ("To Do", "In Progress", "Done", "Blocked", "Archived")
-STATUS_COLORS = {
-    "To Do": "#7DD3FC",
-    "In Progress": "#FB923C",
-    "Done": "#34D399",
-    "Blocked": "#F87171",
-    "Archived": "#9CA3AF",
-}
+LIFECYCLE_OPEN = "OPEN"
+LIFECYCLE_CLOSED = "CLOSED"
+LIFECYCLE_ARCHIVED = "ARCHIVED"
 
-DONE_RE = re.compile(
-    r"\b(done|complete|completed|closed|shipped|finished|fatto)\b", re.I
-)
-BLOCKED_RE = re.compile(r"\b(block|blocked|waiting|on hold|stuck)\b", re.I)
-PROGRESS_RE = re.compile(
-    r"\b(progress|doing|wip|active|review|qa|testing|in progress)\b", re.I
-)
-ARCHIVE_RE = re.compile(r"\b(archive|archived)\b", re.I)
+LIFECYCLE_ORDER = (LIFECYCLE_OPEN, LIFECYCLE_CLOSED, LIFECYCLE_ARCHIVED)
+# Default dashboard filter hides ARCHIVED (still counted in feature/initiative rollups).
+LIFECYCLE_DEFAULT_FILTER = (LIFECYCLE_OPEN, LIFECYCLE_CLOSED)
+LIFECYCLE_COLORS = {
+    LIFECYCLE_OPEN: "#7DD3FC",
+    LIFECYCLE_CLOSED: "#34D399",
+    LIFECYCLE_ARCHIVED: "#9CA3AF",
+}

@@ -6,6 +6,7 @@ import time
 from collections.abc import Callable
 
 from clients import TrelloClient
+from constants.taxonomy import UNMAPPED_SHOW
 from functions.initiative_dashboard import build_initiative_dashboard
 from functions.label_dashboard import build_label_dashboard
 
@@ -20,11 +21,30 @@ def connected_client(
     return TrelloClient(api_key, token, board_id)
 
 
-def load_initiative_dashboard(client: TrelloClient) -> dict:
+def load_initiative_dashboard(
+    client: TrelloClient,
+    *,
+    lifecycle_filter: set[str] | None = None,
+    group_dimension_key: str | None = None,
+    taxonomy_mappings: list | None = None,
+    taxonomy_filters: dict[str, set[str]] | None = None,
+    unmapped_policy: str = UNMAPPED_SHOW,
+    board_name: str | None = None,
+) -> dict:
     labels = client.board_labels()
     cards = client.board_cards_dashboard()
     lists = client.open_lists()
-    return build_initiative_dashboard(labels, cards, lists)
+    return build_initiative_dashboard(
+        labels,
+        cards,
+        lists,
+        lifecycle_filter=lifecycle_filter,
+        group_dimension_key=group_dimension_key,
+        taxonomy_mappings=taxonomy_mappings,
+        taxonomy_filters=taxonomy_filters,
+        unmapped_policy=unmapped_policy,
+        board_name=board_name,
+    )
 
 
 def load_label_dashboard(client: TrelloClient) -> tuple[list[dict], list[dict], list[dict]]:
