@@ -13,9 +13,11 @@ import psycopg
 from psycopg.rows import dict_row
 
 from clients.neon_entity import NeonEntityConfigMixin
+from clients.neon_taxonomy import NeonTaxonomyMixin
+from clients.neon_workspace import NeonWorkspaceMixin
 
 
-class NeonClient(NeonEntityConfigMixin):
+class NeonClient(NeonEntityConfigMixin, NeonWorkspaceMixin, NeonTaxonomyMixin):
     """Thin Postgres wrapper. All SQL goes through this client."""
 
     def __init__(self, database_url: str):

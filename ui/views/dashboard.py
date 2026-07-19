@@ -4,52 +4,69 @@ from datetime import datetime
 
 import streamlit as st
 
-from constants.entity_config import MAPS_TO_LABELS
-from constants.status import LIFECYCLE_ORDER
+from clients import TrelloClient
+from constants.taxonomy import DIM_INITIATIVE, ROLLUP_DIMENSIONS
+from functions.charts import burndown_chart, donut_chart, status_legend_html
 from services import load_initiative_dashboard
-from services.entity_config import dashboard_entity_maps
+from services.taxonomy_io import load_taxonomy_config
 from ui.component.auth import current_user
 from ui.component.color_selector import inject_dashboard_css
+from ui.component.dashboard_filters import render_dashboard_filters
+from ui.component.dashboard_tasks import render_visible_tasks
 from ui.component.initiative_card import render_initiative_card
-from clients import TrelloClient
-from functions.charts import burndown_chart, donut_chart, status_legend_html
-
-
-def _trello_noun(maps_to: str) -> str:
-    return "label" if maps_to == MAPS_TO_LABELS else "list"
 
 
 def _plural_title(name: str) -> str:
     return name if name.endswith("s") else f"{name}s"
 
 
+def _section_title(*, group_key: str | None, dimensions: list) -> str:
+    if group_key:
+        for row in dimensions:
+            if row.get("dimension_key") == group_key:
+                return _plural_title(str(row.get("name") or group_key))
+        return _plural_title(group_key.replace("_", " ").title())
+    return "Initiatives"
+
+
 def render_dashboard_page(client: TrelloClient) -> None:
     inject_dashboard_css()
 
     user = current_user()
-    entity_maps = dashboard_entity_maps(user["id"] if user else None)
-    init_cfg = entity_maps["initiative"]
-    status_cfg = entity_maps["status"]
-    init_name = init_cfg["name"]
-    status_name = status_cfg["name"]
-    init_maps = init_cfg["maps_to"]
+    taxonomy = load_taxonomy_config(user["id"] if user else None)
+    lists = client.open_lists()
+    labels = client.board_labels()
+    board_name = getattr(client, "board_name", None) or client.board_id
 
-    selected = st.multiselect(
-        "Lifecycle status",
-        options=list(LIFECYCLE_ORDER),
-        default=list(LIFECYCLE_ORDER),
-        help="Filter tasks by derived lifecycleStatus (recomputed on each sync).",
-        key="dashboard_lifecycle_filter",
+    head_l, head_r = st.columns([5, 1])
+    with head_l:
+        st.markdown("## Dashboard")
+        kicker_slot = st.empty()
+    with head_r:
+        asof_slot = st.empty()
+
+    filters = render_dashboard_filters(
+        taxonomy=taxonomy,
+        lists=lists,
+        labels=labels,
+        board_name=str(board_name) if board_name else None,
     )
-    if not selected:
-        st.info("Select at least one lifecycle status to show tasks.")
+    if filters is None:
         return
+
+    mappings = filters["mappings"]
+    unmapped_policy = taxonomy.get("unmapped_policy") or "show"
+    group_key = filters["group_dimension_key"] or DIM_INITIATIVE
 
     try:
         data = load_initiative_dashboard(
             client,
-            initiative_maps_to=init_maps,
-            lifecycle_filter=set(selected),
+            lifecycle_filter=filters["lifecycle_filter"],
+            group_dimension_key=group_key,
+            taxonomy_mappings=mappings or None,
+            taxonomy_filters=filters["taxonomy_filters"],
+            unmapped_policy=unmapped_policy,
+            board_name=str(board_name) if board_name else None,
         )
     except Exception as exc:
         st.error(f"Could not load dashboard data: {exc}")
@@ -57,35 +74,27 @@ def render_dashboard_page(client: TrelloClient) -> None:
 
     as_of_dt = datetime.strptime(data["as_of"], "%Y-%m-%d")
     as_of = as_of_dt.strftime("%b %d").replace(" 0", " ")
-    init_noun = _trello_noun(init_maps)
+    section = _section_title(
+        group_key=data.get("group_dimension_key") or group_key,
+        dimensions=filters["dimensions"],
+    )
 
-    head_l, head_r = st.columns([5, 1])
-    with head_l:
-        st.markdown("## Initiative Dashboard")
-        st.markdown(
-            f'<p class="dash-kicker">Synced from Trello · '
-            f"{init_noun}s = {init_name.lower()}s, cards = tasks · "
-            f"pie slices = lifecycle ({status_name.lower()})</p>",
-            unsafe_allow_html=True,
-        )
-    with head_r:
-        st.markdown(
-            f'<div style="text-align:right;padding-top:0.6rem;">'
-            f'<span class="dash-asof">As of {as_of}</span></div>',
-            unsafe_allow_html=True,
-        )
+    kicker_slot.markdown(
+        f'<p class="dash-kicker">Synced from Trello · grouped by '
+        f"{section.lower()} · cards = tasks · pies = lifecycle</p>",
+        unsafe_allow_html=True,
+    )
+    asof_slot.markdown(
+        f'<div style="text-align:right;padding-top:0.6rem;">'
+        f'<span class="dash-asof">As of {as_of}</span></div>',
+        unsafe_allow_html=True,
+    )
 
-    if data["total_tasks"] == 0:
-        if set(selected) != set(LIFECYCLE_ORDER):
-            st.info("No tasks match the selected lifecycle statuses.")
-        else:
-            st.info(
-                "No cards on this board yet. Import tasks or add cards in Trello."
-            )
+    if data["total_tasks"] == 0 and not data["initiatives"]:
+        st.info("No cards match the current filters.")
         return
 
     top_left, top_right = st.columns(2, gap="large")
-
     with top_left:
         with st.container(border=True):
             open_n = data["open_tasks"]
@@ -93,8 +102,8 @@ def render_dashboard_page(client: TrelloClient) -> None:
             n_init = len(data["initiatives"])
             st.markdown(
                 f'<p class="dash-card-title">Overall Burndown</p>'
-                f'<p class="dash-card-sub">{open_n} open of {total_n} tasks '
-                f"across {n_init} {_plural_title(init_name).lower()}.</p>",
+                f'<p class="dash-card-sub">{open_n} open of {total_n} visible '
+                f"tasks across {n_init} {section.lower()}.</p>",
                 unsafe_allow_html=True,
             )
             chart = burndown_chart(
@@ -109,8 +118,8 @@ def render_dashboard_page(client: TrelloClient) -> None:
     with top_right:
         with st.container(border=True):
             st.markdown(
-                f'<p class="dash-card-title">Tasks by {status_name}</p>'
-                f'<p class="dash-card-sub">All {data["total_tasks"]} tasks · '
+                f'<p class="dash-card-title">Tasks by lifecycle</p>'
+                f'<p class="dash-card-sub">{data["total_tasks"]} visible tasks · '
                 f"OPEN / CLOSED / ARCHIVED from card flags.</p>",
                 unsafe_allow_html=True,
             )
@@ -129,19 +138,31 @@ def render_dashboard_page(client: TrelloClient) -> None:
                     unsafe_allow_html=True,
                 )
 
-    section = _plural_title(init_name)
+    render_visible_tasks(
+        data.get("visible_tasks") or [],
+        group_dimension_key=data.get("group_dimension_key") or group_key,
+        dimensions=filters["dimensions"],
+    )
+
     if not data["initiatives"]:
         st.info(
-            f"No {init_noun}-based {section.lower()} on this board yet. "
-            f"Map {init_name} under Settings → Configuration, then apply "
-            f"named {init_noun}s to cards."
+            f"No {section.lower()} matched on this board. "
+            f"Map dimensions under Settings → Configuration."
         )
         return
 
     st.markdown(f"### {section}")
+    rollup_note = ""
+    gk = data.get("group_dimension_key") or group_key
+    if gk in ROLLUP_DIMENSIONS:
+        rollup_note = (
+            " Completion includes CLOSED and ARCHIVED even when ARCHIVED is "
+            "hidden from the visible task list."
+        )
+    unit = section[:-1] if section.endswith("s") else section
     st.caption(
-        f"Each card is a Trello {init_noun}. Charts break that "
-        f"{init_name.lower()}'s tasks down by lifecycle {status_name.lower()}."
+        f"Each card is a {unit.lower()} value. Charts break tasks down by "
+        f"lifecycle.{rollup_note}"
     )
     initiatives = data["initiatives"]
     for row_start in range(0, len(initiatives), 3):

@@ -66,13 +66,13 @@ source .venv/bin/activate
 streamlit run app.py
 ```
 
-**Dashboard** (home) — Initiative grouping follows Settings → Configuration (default: labels = initiatives). **Status** is always derived `lifecycleStatus` on each sync: OPEN / CLOSED / ARCHIVED from card `closed` / due / `dueComplete` (not list names). Charts show **Tasks by Status**; filter by lifecycle; each initiative card uses the same lifecycle slices. Shows overall burndown, status percentages, and a card per initiative with completion % and burndown to target.
+**Dashboard** (home) — Filter by derived `lifecycleStatus` (default OPEN + CLOSED; ARCHIVED off until toggled). Group or filter by any configured taxonomy dimension; combine with lifecycle (e.g. OPEN + feature = Mobile). Initiative/feature rollups use dimension → Trello field mappings (raw names as values); completion % = (CLOSED + ARCHIVED) ÷ total mapped cards, so archived still count in rollups while staying hidden from the visible task list. Multi-label cards show every value for a labels-mapped dimension. Status pies use `lifecycleStatus` from card flags. Shows overall burndown, status percentages, rollup cards, and an expandable visible-task table.
 
 **Cards** — **Manage** tab: filter open cards by list, due date range, label, and assignee; edit/move/delete one card, or multi-select and mass-delete with confirmation. **Import** tab: upload a `.xlsx` file, preview tasks, then **Dry run** or **Create cards**.
 
 **Labels** — detailed label breakdown by list, plus create/rename/recolor/delete. The Excel `Labels` column uses label names; any name not already on the board is created automatically during import.
 
-**Settings** — **Connections**: signed-in users add, edit, and delete named Trello connections (name, API key, token, board ID, list ID), stored per account in Neon; the sidebar picks the active connection. `.env` values remain the defaults/fallback. **Configuration**: edit Initiative and Status (name, description, maps to Lists or Labels); saved per user in Neon (`app_entity_configurations`). Initiative `maps_to` drives Dashboard grouping; Status chart slices always use lifecycleStatus.
+**Settings** — **Connections**: signed-in users add, edit, and delete named Trello connections (name, API key, token, board ID, list ID), stored per account in Neon; the sidebar picks the active connection. `.env` values remain the defaults/fallback. **Configuration**: map each taxonomy dimension (status, feature, initiative, or custom) to one Trello field (cards, lists, labels, or boards), with unmapped show/exclude policy and JSON export/import (personal workspace spanning all of the user’s connections).
 
 ## CLI
 

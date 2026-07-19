@@ -37,14 +37,15 @@ CONFIGURATION_CSS = """
     font-size: 0.88rem;
     margin: 0.35rem 0 0;
   }
-  div.st-key-config_dialog_save button {
+  div.st-key-tax_dim_save button,
+  div.st-key-tax_import_btn button {
     background-color: #0052cc !important;
     color: #ffffff !important;
     border: none !important;
     border-radius: 0.5rem !important;
     font-weight: 600 !important;
   }
-  div.st-key-config_dialog_cancel button {
+  div.st-key-tax_dim_cancel button {
     background-color: #ffffff !important;
     color: #111827 !important;
     border: 1.5px solid #d1d5db !important;

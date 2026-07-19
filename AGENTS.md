@@ -22,17 +22,19 @@ The connected board is interpreted as:
 
 | Trello concept | App meaning |
 | --- | --- |
-| **Label** (default) | Initiative (grouping; configurable to Lists) |
+| **Cards / Lists / Labels / Boards** | Taxonomy field sources (raw names = dimension values) |
 | **Card** | Task |
 | **Card flags** | Status via derived `lifecycleStatus` (not list names) |
 
-Dashboard Status is always derived `lifecycleStatus` from `compute_lifecycle_status()` (`functions/status.py`), recomputed on every sync (never stored). Precedence (first match wins):
+Dashboard Status pies always use derived `lifecycleStatus` from `compute_lifecycle_status()` (`functions/status.py`), recomputed on every sync (never stored). Precedence (first match wins):
 
 - **ARCHIVED** — `closed == true`
 - **CLOSED** — `closed == false` and due is set and `dueComplete == true`
 - **OPEN** — otherwise (including cards with no due date)
 
-Lists are not used for Status. Initiative grouping still follows Settings → Configuration `maps_to` (Labels or Lists).
+**Initiative grouping:** each taxonomy dimension maps 1:1 to a Trello field (Cards, Lists, Labels, or Boards). Dashboard groups by that field’s raw names (defaults: Feature→Labels, Initiative→Labels, Status→Lists). Cards with no value follow the workspace unmapped policy (show as `Unmapped` or exclude).
+
+**Dashboard filters (FR3):** lifecycleStatus is always available; default view is OPEN + CLOSED (ARCHIVED hidden until toggled). Group/filter by any configured taxonomy dimension independently; combine with lifecycle (e.g. OPEN + feature = Mobile). Cards with multiple labels on a labels-mapped dimension contribute every value (multi-group + task table). Feature/initiative completion = (CLOSED + ARCHIVED) ÷ total mapped cards — archived stay in rollup math even when hidden from the visible task list. Rollups stay visible at 100% (no auto-collapse; explicit close-out is a future to-do).
 
 ## Layout
 
@@ -49,6 +51,8 @@ trello_from_excel/
 │   ├── trello_cards.py         # card create / update / delete
 │   ├── neon.py                 # Neon Postgres (psycopg) — sole DB surface
 │   ├── neon_entity.py          # entity configuration table mixin
+│   ├── neon_workspace.py       # workspaces + members mixin
+│   ├── neon_taxonomy.py        # taxonomy dimensions + mappings mixin
 │   └── resend.py               # Resend email API — sole email surface
 ├── constants/                  # STRICT: sole place for static constants
 │   ├── pages.py                # PAGES = Dashboard, Cards, Labels, Settings
@@ -56,6 +60,7 @@ trello_from_excel/
 │   ├── styles.py               # NAV_CSS, CONNECTIONS_CSS, DASHBOARD_CSS
 │   ├── config_styles.py        # CONFIGURATION_CSS
 │   ├── entity_config.py        # default Initiative→Labels, Status→Lists
+│   ├── taxonomy.py             # default dims, field sources, unmapped policy
 │   ├── links.py                # Trello guide, GitHub, privacy URLs
 │   ├── excel.py                # COLUMN_ALIASES, TEMPLATE_COLUMNS
 │   └── status.py               # LIST_PALETTE, LIFECYCLE_* buckets/colors
@@ -69,13 +74,19 @@ trello_from_excel/
 │   ├── label_dashboard.py      # build_label_dashboard
 │   ├── burndown.py             # card_lifecycle + build_burndown_series
 │   ├── dashboard_breakdown.py  # lifecycle pie breakdown helpers
+│   ├── dashboard_rollups.py    # feature/initiative rollup rows + completion %
+│   ├── taxonomy.py             # field resolve, import validate
+│   ├── taxonomy_filter.py      # annotate/filter by taxonomy + lifecycle
 │   └── initiative_dashboard.py # build_initiative_dashboard
 ├── services/                  # orchestration (no Streamlit, no raw HTTP/DB)
 │   ├── trello.py               # TrelloClient wrappers (connect, cards, labels, dashboards)
 │   ├── neon.py                 # NeonClient wrappers (connect, ping)
 │   ├── auth.py                 # account create / sign-in (Neon + welcome email)
 │   ├── config.py               # named Trello connections CRUD (Neon)
-│   ├── entity_config.py        # Initiative/Status configs CRUD + dashboard maps
+│   ├── entity_config.py        # legacy Initiative/Status configs (unused by dashboard)
+│   ├── workspace.py            # personal workspace ensure + unmapped policy
+│   ├── taxonomy.py             # taxonomy dimension/mapping CRUD
+│   ├── taxonomy_io.py          # taxonomy JSON import/export + dashboard load
 │   ├── email.py                # ResendClient wrappers (welcome email)
 │   ├── excel.py                # process_tasks / UI import helpers
 │   └── __init__.py             # re-exports
@@ -83,7 +94,7 @@ trello_from_excel/
 ├── app.py                      # Streamlit entry: config, nav, sidebar, page dispatch
 ├── ui/                         # STRICT: Streamlit-only UI package
 │   ├── views/
-│   │   ├── dashboard.py        # initiative dashboard (config-driven)
+│   │   ├── dashboard.py        # initiative dashboard (taxonomy-driven)
 │   │   ├── cards.py            # Cards page shell (Manage + Import tabs)
 │   │   ├── labels.py           # Labels page
 │   │   ├── settings.py         # Settings page (Connections + Configuration tabs)
@@ -98,7 +109,12 @@ trello_from_excel/
 │       ├── trello_config_state.py  # session helpers for active connection
 │       ├── connection_dialog.py    # add/edit connection modal
 │       ├── connection_list.py      # connection cards + empty state
-│       ├── configuration_dialog.py # edit entity configuration modal
+│       ├── taxonomy_dialogs.py     # add/rename taxonomy dimension
+│       ├── taxonomy_dimensions.py  # dimensions + unmapped policy UI
+│       ├── taxonomy_mappings.py    # dimension → Trello field radios
+│       ├── taxonomy_import_export.py  # taxonomy JSON download/upload
+│       ├── dashboard_filters.py    # lifecycle + taxonomy group/filter controls
+│       ├── dashboard_tasks.py      # visible task table (multi-value dims)
 │       ├── footer.py               # page footer
 │       ├── initiative_card.py  # one initiative card on Dashboard
 │       ├── color_selector.py   # label color palette + dashboard CSS inject
@@ -150,7 +166,7 @@ CLI flags override `.env` when provided (`--board-id`, `--list-id`, `--sheet`).
 | `TRELLO_LIST_ID` | No | Default list when a row has no List |
 | `DATABASE_URL` | No* | Neon Postgres URL (*required for DB features; prefer pooled `-pooler` host) |
 
-Auth is always query params `key` + `token` on `https://api.trello.com/1`. Never log full request URLs or params that include secrets. `clients.http.raise_for_status` exists specifically to avoid leaking credentials in error messages — keep that property. Never log `DATABASE_URL`. Signed-in users can save multiple named Trello connections on Settings → Connections (`app_trello_connections` in Neon) and Initiative/Status entity configs on Settings → Configuration (`app_entity_configurations`; maps_to is Lists or Labels). Initiative `maps_to` drives Dashboard grouping; Status chart slices always use derived `lifecycleStatus` (OPEN/CLOSED/ARCHIVED), independent of Status `maps_to`. Unsigned users get the defaults (Initiative → Labels, Status → Lists). `.env` remains the default/fallback for Trello credentials.
+Auth is always query params `key` + `token` on `https://api.trello.com/1`. Never log full request URLs or params that include secrets. `clients.http.raise_for_status` exists specifically to avoid leaking credentials in error messages — keep that property. Never log `DATABASE_URL`. Signed-in users can save multiple named Trello connections on Settings → Connections (`app_trello_connections` in Neon). **Taxonomy mappings** live on the user’s personal workspace (`app_workspaces` / `app_taxonomy_*`): each dimension maps 1:1 to a Trello field (cards / lists / labels / boards); raw field names are the dashboard values (defaults: feature→labels, initiative→labels, status→lists; custom dims allowed). Unmapped policy is show-as-`Unmapped` or exclude. JSON export/import is supported. Status chart slices always use derived `lifecycleStatus`. `.env` remains the default/fallback for Trello credentials.
 
 Authorize a token (replace `YOUR_KEY`):
 `https://trello.com/1/authorize?expiration=never&scope=read,write&response_type=token&name=TrelloBoardTools&key=YOUR_KEY`
@@ -189,10 +205,10 @@ Prefer extending `COLUMN_ALIASES` over one-off column handling in the UI.
 
 `app.py` dispatches; sidebar is `ui/component/sidebar.py`. Main nav (`constants/pages.py`):
 
-1. **Dashboard** (`ui/views/dashboard.py`) — initiative burndown / lifecycle status (needs connected client)
+1. **Dashboard** (`ui/views/dashboard.py`) — lifecycle + taxonomy filters, dimension rollups (needs connected client)
 2. **Cards** (`ui/views/cards.py`) — Manage tab (`ui/tabs/manage.py`: filters, edit/move/delete, mass delete) and Import tab (`ui/tabs/import_cards.py`: upload `.xlsx`, preview, dry-run or create)
 3. **Labels** (`ui/views/labels.py`) — breakdown + CRUD + color palette
-4. **Settings** (`ui/views/settings.py`) — **Connections** tab (`ui/tabs/settings_connections.py`; Neon `app_trello_connections`) and **Configuration** tab (`ui/tabs/configuration.py`; Neon `app_entity_configurations` for Initiative/Status maps_to Lists|Labels; signed-in only; Initiative maps_to drives Dashboard grouping; Status pies use lifecycleStatus)
+4. **Settings** (`ui/views/settings.py`) — **Connections** tab (`ui/tabs/settings_connections.py`; Neon `app_trello_connections`) and **Configuration** tab (`ui/tabs/configuration.py`; workspace taxonomy dimensions, dimension→Trello field mappings, JSON import/export, unmapped policy; signed-in only)
 
 When adding a page: register it in `PAGES` (`constants/pages.py`), add `ui/views/<name>.py`, wire the nav in `app.py`, and gate on `client is None` like the others (Settings gates on signed-in user instead).
 
@@ -207,4 +223,4 @@ When adding a page: register it in `PAGES` (`constants/pages.py`), add `ui/views
 
 - **New card fields:** extend `COLUMN_ALIASES` (`constants/excel.py`), `process_tasks` (`services/excel.py`), and `TrelloClient.create_card` / `update_card` together; update README.
 - **New dashboard metric:** compute in `functions/initiative_dashboard.py` (or related helpers), render in `ui/views/dashboard.py` / related components.
-- **Lifecycle status:** update `compute_lifecycle_status` (`functions/status.py`), `LIFECYCLE_*` (`constants/status.py`), and README status notes together.
+- **Taxonomy mappings:** extend `constants/taxonomy.py`, Neon taxonomy mixins, `functions/taxonomy.py`, and Settings → Configuration UI together; keep one Trello field per dimension.

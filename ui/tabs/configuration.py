@@ -1,66 +1,56 @@
-"""Configuration tab: edit Initiative and Status entity mappings."""
+"""Configuration tab: taxonomy dimensions, mappings, and import/export."""
 
 from __future__ import annotations
-
-from html import escape
 
 import streamlit as st
 
 from constants.config_styles import CONFIGURATION_CSS
 from services.auth import AuthError
-from services.entity_config import list_entity_configurations
+from services.taxonomy import list_dimensions, list_mappings
+from services.workspace import ensure_personal_workspace
 from ui.component.auth import current_user
-from ui.component.configuration_dialog import (
-    open_edit_configuration_dialog,
-    render_configuration_dialog,
+from ui.component.taxonomy_dialogs import render_taxonomy_dialogs
+from ui.component.taxonomy_dimensions import (
+    render_dimensions_section,
+    render_unmapped_policy,
 )
+from ui.component.taxonomy_import_export import render_import_export
+from ui.component.taxonomy_mappings import render_mappings_section
 
 
 def render_configuration_tab() -> None:
     st.markdown(CONFIGURATION_CSS, unsafe_allow_html=True)
     st.markdown(
-        '<p class="config-kicker">Define the entity types used across the '
-        "dashboard, such as Initiative and Status.</p>",
+        '<p class="config-kicker">Map each taxonomy dimension to a Trello '
+        "field (cards, lists, labels, or boards). Raw field names become "
+        "dashboard values. Mappings are shared across boards in your "
+        "workspace.</p>",
         unsafe_allow_html=True,
     )
 
     user = current_user()
     if user is None:
-        st.info("Sign in to view or edit dashboard configurations.")
+        st.info("Sign in to view or edit taxonomy mappings.")
         return
 
+    user_id = user["id"]
     try:
-        configs = list_entity_configurations(user["id"])
+        workspace = ensure_personal_workspace(user_id)
+        dimensions = list_dimensions(user_id)
+        mappings = list_mappings(user_id)
     except AuthError as exc:
         st.error(str(exc))
         return
 
-    st.markdown(
-        f'<p class="config-count">{len(configs)} configuration(s)</p>',
-        unsafe_allow_html=True,
+    render_unmapped_policy(
+        user_id=user_id, current=workspace.get("unmapped_policy") or "show"
     )
-    for config in configs:
-        _render_card(config)
-    render_configuration_dialog(user["id"])
-
-
-def _render_card(config: dict) -> None:
-    name = escape(config.get("name") or "Untitled")
-    maps_to = escape(config.get("maps_to") or "—")
-    desc = escape(config.get("description") or "")
-    with st.container(border=True):
-        left, right = st.columns([5, 1], vertical_alignment="center")
-        with left:
-            st.markdown(
-                f'<p class="config-card-title">{name}</p>'
-                f'<span class="config-badge">{maps_to}</span>'
-                f'<p class="config-card-desc">{desc}</p>',
-                unsafe_allow_html=True,
-            )
-        with right:
-            if st.button(
-                "Edit",
-                key=f"config_edit_{config['entity_key']}",
-                width="stretch",
-            ):
-                open_edit_configuration_dialog(config)
+    st.divider()
+    render_dimensions_section(user_id=user_id, dimensions=dimensions)
+    st.divider()
+    render_mappings_section(
+        user_id=user_id, dimensions=dimensions, mappings=mappings
+    )
+    st.divider()
+    render_import_export(user_id=user_id)
+    render_taxonomy_dialogs(user_id=user_id, dimensions=dimensions)

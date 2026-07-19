@@ -15,7 +15,7 @@ def render_settings_page() -> None:
     st.markdown("## Settings")
     st.markdown(
         '<p class="connections-kicker">Manage Trello connections and '
-        "dashboard configurations. Only signed-in users can view or edit "
+        "taxonomy mappings. Only signed-in users can view or edit "
         "these.</p>",
         unsafe_allow_html=True,
     )
