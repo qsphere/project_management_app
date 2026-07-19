@@ -2,8 +2,9 @@
 """
 CLI: create Trello cards from rows in an Excel spreadsheet.
 
-Credentials and defaults come from `.env` (see `.env.example`). Domain logic
-lives under ``functions/`` and ``services/``; this file is the CLI entry only.
+Credentials and defaults come from `.streamlit/secrets.toml`
+(see `.streamlit/secrets.toml.example`). Domain logic lives under
+``functions/`` and ``services/``; this file is the CLI entry only.
 
 Example:
   python trello_cli.py tasks.xlsx --dry-run
@@ -16,11 +17,9 @@ import argparse
 import os
 import sys
 
-from dotenv import load_dotenv
-
 from services.excel import process_tasks
 from clients import TrelloClient
-from functions.env import SCRIPT_DIR
+from functions.env import SECRETS_PATH, load_secrets
 from functions.excel import load_tasks
 
 
@@ -37,12 +36,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--board-id",
         default=None,
-        help="Trello board ID (or set TRELLO_BOARD_ID in .env)",
+        help="Trello board ID (or set TRELLO_BOARD_ID in secrets.toml)",
     )
     parser.add_argument(
         "--list-id",
         default=None,
-        help="Default list ID when a row has no List value (or set TRELLO_LIST_ID in .env)",
+        help=(
+            "Default list ID when a row has no List value "
+            "(or set TRELLO_LIST_ID in secrets.toml)"
+        ),
     )
     parser.add_argument(
         "--dry-run",
@@ -59,13 +61,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    load_dotenv(SCRIPT_DIR / ".env")
+    load_secrets()
 
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    # Re-read defaults after dotenv load so CLI still wins when flags are passed,
-    # but .env values apply when flags are omitted.
+    # Re-read defaults after secrets load so CLI still wins when flags are
+    # passed, but secrets.toml values apply when flags are omitted.
     if args.board_id is None:
         args.board_id = os.getenv("TRELLO_BOARD_ID")
     if args.list_id is None:
@@ -76,15 +78,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if not api_key or not token:
         print(
-            "Error: Set TRELLO_API_KEY and TRELLO_TOKEN in .env "
-            f"({SCRIPT_DIR / '.env'}) or in the environment.",
+            "Error: Set TRELLO_API_KEY and TRELLO_TOKEN in "
+            f"{SECRETS_PATH} or in the environment.",
             file=sys.stderr,
         )
         return 1
 
     if not args.board_id:
         print(
-            "Error: Pass --board-id or set TRELLO_BOARD_ID in .env.",
+            "Error: Pass --board-id or set TRELLO_BOARD_ID in secrets.toml.",
             file=sys.stderr,
         )
         return 1

@@ -26,7 +26,8 @@ def _client() -> NeonClient:
     client = connected_neon_client()
     if client is None:
         raise AuthError(
-            "Database is not configured. Set DATABASE_URL in .env to enable accounts."
+            "Database is not configured. Set DATABASE_URL in "
+            ".streamlit/secrets.toml to enable accounts."
         )
     client.ensure_users_table()
     client.ensure_trello_connections_table()

@@ -10,7 +10,7 @@ Small Python tool that creates and manages Trello cards from Excel, plus a Strea
 - **Constants:** `constants/` — static data only (palettes, page lists, CSS, Excel aliases, status heuristics)
 - **Helpers:** `functions/` — pure helpers and domain builders (no Streamlit, no raw HTTP)
 - **Orchestration:** `services/` — thin wrappers over clients + domain (no Streamlit, no raw HTTP)
-- **CLI entry:** `trello_cli.py` — argparse + dotenv only; calls `functions` / `services`
+- **CLI entry:** `trello_cli.py` — argparse + secrets.toml only; calls `functions` / `services`
 - **UI entry:** `app.py` — page config, nav, sidebar hook, page dispatch
 - **UI modules (Streamlit-only):** `ui/views/`, `ui/tabs/`, `ui/component/`
 
@@ -65,7 +65,7 @@ trello_from_excel/
 │   ├── excel.py                # COLUMN_ALIASES, TEMPLATE_COLUMNS
 │   └── status.py               # LIST_PALETTE, LIFECYCLE_* buckets/colors
 ├── functions/                  # pure helpers + domain (no Streamlit)
-│   ├── env.py                  # env(), SCRIPT_DIR
+│   ├── env.py                  # env(), load_secrets(), SCRIPT_DIR, SECRETS_PATH
 │   ├── dates.py                # card/Excel/Trello date parse/format
 │   ├── cards.py                # card choice labels + filter_cards
 │   ├── charts.py               # Altair burndown/donut + status legend HTML
@@ -127,12 +127,13 @@ trello_from_excel/
 ├── scripts/
 │   └── check_app_streamlit_only.py
 ├── requirements.txt
-├── .env.example                # template only
-├── .env                        # local secrets — never commit
+├── .streamlit/
+│   ├── secrets.toml.example    # template only
+│   └── secrets.toml            # local secrets — never commit
 └── README.md
 ```
 
-Do not edit `.venv/` or commit `.env`. Static constants must live under `constants/` only. Non-Streamlit code must not live under `ui/`.
+Do not edit `.venv/` or commit `.streamlit/secrets.toml`. Static constants must live under `constants/` only. Non-Streamlit code must not live under `ui/`.
 
 ## Setup & commands
 
@@ -154,9 +155,11 @@ python trello_cli.py tasks.xlsx
 python scripts/check_app_streamlit_only.py
 ```
 
-CLI flags override `.env` when provided (`--board-id`, `--list-id`, `--sheet`).
+CLI flags override `.streamlit/secrets.toml` when provided (`--board-id`, `--list-id`, `--sheet`).
 
-## Environment
+## Secrets
+
+Credentials live in `.streamlit/secrets.toml` ([Streamlit secrets management](https://docs.streamlit.io/develop/concepts/connections/secrets-management)). Root-level keys are loaded into `os.environ` via `load_secrets()` (UI + CLI) and are also available as `st.secrets["KEY"]` when Streamlit runs.
 
 | Variable | Required | Role |
 | --- | --- | --- |
@@ -165,8 +168,11 @@ CLI flags override `.env` when provided (`--board-id`, `--list-id`, `--sheet`).
 | `TRELLO_BOARD_ID` | Yes* | Default board (*or pass in UI/CLI) |
 | `TRELLO_LIST_ID` | No | Default list when a row has no List |
 | `DATABASE_URL` | No* | Neon Postgres URL (*required for DB features; prefer pooled `-pooler` host) |
+| `CREDENTIALS_ENCRYPTION_KEY` | No* | Fernet key for encrypted connection credentials |
+| `RESEND_API_KEY` | No* | Resend API key for account emails |
+| `RESEND_FROM_EMAIL` | No | Resend from address |
 
-Auth is always query params `key` + `token` on `https://api.trello.com/1`. Never log full request URLs or params that include secrets. `clients.http.raise_for_status` exists specifically to avoid leaking credentials in error messages — keep that property. Never log `DATABASE_URL`. Signed-in users can save multiple named Trello connections on Settings → Connections (`app_trello_connections` in Neon). **Taxonomy mappings** live on the user’s personal workspace (`app_workspaces` / `app_taxonomy_*`): each dimension maps 1:1 to a Trello field (cards / lists / labels / boards); raw field names are the dashboard values (defaults: feature→labels, initiative→labels, status→lists; custom dims allowed). Unmapped policy is show-as-`Unmapped` or exclude. JSON export/import is supported. Status chart slices always use derived `lifecycleStatus`. `.env` remains the default/fallback for Trello credentials.
+Auth is always query params `key` + `token` on `https://api.trello.com/1`. Never log full request URLs or params that include secrets. `clients.http.raise_for_status` exists specifically to avoid leaking credentials in error messages — keep that property. Never log `DATABASE_URL`. Signed-in users can save multiple named Trello connections on Settings → Connections (`app_trello_connections` in Neon). **Taxonomy mappings** live on the user’s personal workspace (`app_workspaces` / `app_taxonomy_*`): each dimension maps 1:1 to a Trello field (cards / lists / labels / boards); raw field names are the dashboard values (defaults: feature→labels, initiative→labels, status→lists; custom dims allowed). Unmapped policy is show-as-`Unmapped` or exclude. JSON export/import is supported. Status chart slices always use derived `lifecycleStatus`. `.streamlit/secrets.toml` remains the default/fallback for Trello credentials.
 
 Authorize a token (replace `YOUR_KEY`):
 `https://trello.com/1/authorize?expiration=never&scope=read,write&response_type=token&name=TrelloBoardTools&key=YOUR_KEY`
@@ -198,7 +204,7 @@ Prefer extending `COLUMN_ALIASES` over one-off column handling in the UI.
 6. **Import path:** UI and CLI both use `load_tasks` → `process_tasks` (`functions/excel.py` → `services/excel.py`). Preserve dry-run behavior.
 7. **Dashboard path:** `build_initiative_dashboard` / `build_label_dashboard` own the data shape; `ui/views/dashboard.py` and `ui/component/` only chart and lay out.
 8. **Types:** Prefer `from __future__ import annotations` and explicit return types on new public functions.
-9. **Dependencies:** Stick to `requirements.txt` (pandas, openpyxl, requests, python-dotenv, streamlit, psycopg, resend). Add Altair only if the UI already imports it for charts.
+9. **Dependencies:** Stick to `requirements.txt` (pandas, openpyxl, requests, streamlit, psycopg, resend, cryptography). Add Altair only if the UI already imports it for charts.
 10. **File length:** Every project `.py` file ≤ 250 lines. Split by responsibility before finishing; do not minify to dodge the limit.
 
 ## UI pages
@@ -214,7 +220,7 @@ When adding a page: register it in `PAGES` (`constants/pages.py`), add `ui/views
 
 ## Safety
 
-- Never commit `.env`, tokens, or API keys.
+- Never commit `.streamlit/secrets.toml`, tokens, or API keys.
 - Prefer dry-run when changing import or label-creation behavior.
 - Destructive Trello ops (`delete_card`, `delete_cards`, `delete_label`) should stay behind explicit UI confirmation.
 - Rate-limit creates and bulk deletes with the existing delay slider / CLI delay; do not fire unbounded card POSTs/DELETEs.

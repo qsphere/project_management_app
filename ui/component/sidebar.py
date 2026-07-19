@@ -65,7 +65,8 @@ def render_sidebar() -> tuple[
         else:
             st.info(
                 "Add a Trello connection on the Settings page "
-                "(sign in required), or set values in `.env`."
+                "(sign in required), or set values in "
+                "`.streamlit/secrets.toml`."
             )
 
         delay = st.slider("Delay between creates (seconds)", 0.0, 2.0, 0.25, 0.05)
