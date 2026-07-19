@@ -9,6 +9,7 @@ import streamlit.components.v1 as components
 from ui.component.cards_mass_delete import confirm_bulk_delete
 from functions.dates import display_card_date
 from clients import TrelloClient
+from services import excel_cards_export_bytes
 
 # Bust stale dataframe state when action columns change shape.
 _TABLE_KEY = "cards_manage_table_v4"
@@ -16,6 +17,9 @@ _LEGACY_TABLE_KEYS = (
     "cards_manage_table",
     "cards_manage_table_v2",
     "cards_manage_table_v3",
+)
+_EXPORT_MIME = (
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
 _EDIT_ACTION = ":material/edit: Edit"
@@ -33,8 +37,13 @@ def _drop_legacy_table_state() -> None:
         st.session_state.pop(key, None)
 
 
-def _render_toolbar(*, selected_count: int, disabled: bool) -> bool:
-    clear_col, delete_col = st.columns(2)
+def _render_toolbar(
+    *,
+    selected_count: int,
+    disabled: bool,
+    export_bytes: bytes | None = None,
+) -> bool:
+    clear_col, export_col, delete_col = st.columns(3)
     with clear_col:
         if st.button(
             "Clear selection",
@@ -44,6 +53,17 @@ def _render_toolbar(*, selected_count: int, disabled: bool) -> bool:
         ):
             _clear_table_selection()
             st.rerun()
+    with export_col:
+        st.download_button(
+            f"Export selection ({selected_count})",
+            data=export_bytes or b"",
+            file_name="trello_cards_export.xlsx",
+            mime=_EXPORT_MIME,
+            width="stretch",
+            key="cards_bulk_export",
+            icon=":material/download:",
+            disabled=disabled or selected_count == 0 or not export_bytes,
+        )
     with delete_col:
         return st.button(
             f"Delete selected ({selected_count})",
@@ -182,18 +202,29 @@ def render_cards_table(
         df.iloc[i]["_id"] for i in selected_rows
     ]
     selected_count = len(selected_rows)
-
-    with toolbar.container():
-        delete_clicked = _render_toolbar(
-            selected_count=selected_count, disabled=False
-        )
-
     card_by_id = {card["id"]: card for card in ordered}
     selected_bulk = [
         card_by_id[card_id]
         for card_id in st.session_state["cards_selected_ids"]
         if card_id in card_by_id
     ]
+
+    with toolbar.container():
+        export_bytes = (
+            excel_cards_export_bytes(
+                selected_bulk,
+                list_id_to_name=list_id_to_name,
+                label_names=label_names,
+                member_names=member_names,
+            )
+            if selected_bulk
+            else None
+        )
+        delete_clicked = _render_toolbar(
+            selected_count=selected_count,
+            disabled=False,
+            export_bytes=export_bytes,
+        )
 
     if delete_clicked and selected_bulk:
         confirm_bulk_delete(client, selected_bulk, delay=delay)

@@ -7,6 +7,7 @@ from typing import Any
 import pandas as pd
 
 from constants.excel import COLUMN_ALIASES, TEMPLATE_COLUMNS
+from functions.dates import format_card_date
 
 
 def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -34,9 +35,16 @@ def cell_str(value: Any) -> str | None:
     return text or None
 
 
+def _workbook_bytes(rows: list[dict[str, Any]]) -> bytes:
+    frame = pd.DataFrame(rows, columns=list(TEMPLATE_COLUMNS))
+    buffer = BytesIO()
+    frame.to_excel(buffer, index=False, sheet_name="Tasks")
+    return buffer.getvalue()
+
+
 def build_excel_template() -> bytes:
     """Return an .xlsx workbook with the expected headers and one example row."""
-    example = pd.DataFrame(
+    return _workbook_bytes(
         [
             {
                 "Name": "Example card title",
@@ -48,12 +56,55 @@ def build_excel_template() -> bytes:
                 "Start": "2026-07-20",
                 "Position": "top",
             }
-        ],
-        columns=list(TEMPLATE_COLUMNS),
+        ]
     )
-    buffer = BytesIO()
-    example.to_excel(buffer, index=False, sheet_name="Tasks")
-    return buffer.getvalue()
+
+
+def card_to_template_row(
+    card: dict,
+    *,
+    list_id_to_name: dict[str, str],
+    label_names: dict[str, str],
+    member_names: dict[str, str],
+) -> dict[str, str]:
+    """Map a Trello card dict to one import-template row."""
+    labels = ", ".join(
+        label_names.get(lid, lid) for lid in card.get("idLabels") or []
+    )
+    assignees = ", ".join(
+        member_names.get(mid, mid) for mid in card.get("idMembers") or []
+    )
+    pos = card.get("pos")
+    return {
+        "Name": card.get("name") or "",
+        "Description": card.get("desc") or "",
+        "List": list_id_to_name.get(card.get("idList") or "", ""),
+        "Labels": labels,
+        "Assignee": assignees,
+        "Due": format_card_date(card.get("due")),
+        "Start": format_card_date(card.get("start")),
+        "Position": "" if pos is None or pos == "" else str(pos),
+    }
+
+
+def build_cards_excel(
+    cards: list[dict],
+    *,
+    list_id_to_name: dict[str, str],
+    label_names: dict[str, str],
+    member_names: dict[str, str],
+) -> bytes:
+    """Export cards as an .xlsx matching the import template columns."""
+    rows = [
+        card_to_template_row(
+            card,
+            list_id_to_name=list_id_to_name,
+            label_names=label_names,
+            member_names=member_names,
+        )
+        for card in cards
+    ]
+    return _workbook_bytes(rows)
 
 
 def list_sheet_names(excel_source: str | Path | Any) -> list[str]:

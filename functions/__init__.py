@@ -14,7 +14,9 @@ from .dates import (
 )
 from .env import SCRIPT_DIR, SECRETS_PATH, env, load_secrets
 from .excel import (
+    build_cards_excel,
     build_excel_template,
+    card_to_template_row,
     cell_str,
     list_sheet_names,
     load_tasks,
@@ -47,7 +49,9 @@ __all__ = [
     "SECRETS_PATH",
     "env",
     "load_secrets",
+    "build_cards_excel",
     "build_excel_template",
+    "card_to_template_row",
     "cell_str",
     "list_sheet_names",
     "load_tasks",

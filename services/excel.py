@@ -11,6 +11,7 @@ import pandas as pd
 from clients import TrelloClient
 from functions.dates import format_date_field, format_due, format_pos
 from functions.excel import (
+    build_cards_excel,
     build_excel_template,
     cell_str,
     list_sheet_names,
@@ -22,6 +23,21 @@ ProgressCallback = Callable[[int, int, str], None]
 
 def excel_template_bytes() -> bytes:
     return build_excel_template()
+
+
+def excel_cards_export_bytes(
+    cards: list[dict],
+    *,
+    list_id_to_name: dict[str, str],
+    label_names: dict[str, str],
+    member_names: dict[str, str],
+) -> bytes:
+    return build_cards_excel(
+        cards,
+        list_id_to_name=list_id_to_name,
+        label_names=label_names,
+        member_names=member_names,
+    )
 
 
 def read_sheet_names(buffer: BytesIO) -> list[str]:
