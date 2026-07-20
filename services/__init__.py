@@ -12,6 +12,7 @@ from services.config import (
     update_trello_connection,
 )
 from services.excel import (
+    excel_cards_export_bytes,
     excel_template_bytes,
     read_sheet_names,
     read_tasks,
@@ -46,6 +47,7 @@ __all__ = [
     "delete_label",
     "delete_trello_connection",
     "env_trello_config",
+    "excel_cards_export_bytes",
     "excel_template_bytes",
     "get_trello_connection",
     "label_dashboard_rows",
