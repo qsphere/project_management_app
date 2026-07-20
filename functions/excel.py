@@ -8,6 +8,7 @@ import pandas as pd
 
 from constants.excel import COLUMN_ALIASES, TEMPLATE_COLUMNS
 from functions.dates import format_card_date
+from functions.subtasks import encode_subtasks_cell
 
 
 def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -55,6 +56,7 @@ def build_excel_template() -> bytes:
                 "Due": "2026-08-01",
                 "Start": "2026-07-20",
                 "Position": "top",
+                "Subtasks": "Prep: Draft outline | Review notes; Ship: Deploy",
             }
         ]
     )
@@ -84,6 +86,7 @@ def card_to_template_row(
         "Due": format_card_date(card.get("due")),
         "Start": format_card_date(card.get("start")),
         "Position": "" if pos is None or pos == "" else str(pos),
+        "Subtasks": encode_subtasks_cell(card.get("checklists") or []),
     }
 
 

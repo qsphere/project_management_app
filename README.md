@@ -62,6 +62,9 @@ Columns are matched case-insensitively (aliases accepted):
 | Labels | No | Comma-separated label **names** (not IDs). Missing names are created on the board with an unused color |
 | Assignee / Members | No | Comma-separated board member **full names** or **usernames** (mapped to `idMembers`) |
 | Due / Due Date | No | Excel date or ISO string |
+| Start / Start Date | No | Excel date or ISO string |
+| Position | No | `top`, `bottom`, or a number |
+| Subtasks / Checklist(s) | No | Check items as subtasks. Format: `Group: item1 \| item2; Other: item3`. Bare items (no `Group:`) go under a checklist named `Subtasks`. Import creates incomplete items only; checked state is not round-tripped. |
 
 ## Streamlit UI
 
@@ -72,7 +75,7 @@ streamlit run app.py
 
 **Dashboard** (home) — Filter by derived `lifecycleStatus` (default OPEN + CLOSED; ARCHIVED off until toggled). Group or filter by any configured taxonomy dimension; combine with lifecycle (e.g. OPEN + feature = Mobile). Initiative/feature rollups use dimension → Trello field mappings (raw names as values); completion % = (CLOSED + ARCHIVED) ÷ total mapped cards, so archived still count in rollups while staying hidden from the visible task list. Multi-label cards show every value for a labels-mapped dimension. Status pies use `lifecycleStatus` from card flags. Shows overall burndown, status percentages, rollup cards, and an expandable visible-task table.
 
-**Cards** — **Manage** tab: filter open cards by list, due date range, label, and assignee; edit/move/delete one card, or multi-select and mass-delete with confirmation. **Import** tab: upload a `.xlsx` file, preview tasks, then **Dry run** or **Create cards**.
+**Cards** — **Manage** tab: filter open cards by list, due date range, label, and assignee; edit/move/delete one card (including subtasks from Trello checklists), or multi-select and mass-delete with confirmation; export selection includes a Subtasks column. **Import** tab: upload a `.xlsx` file, preview tasks, then **Dry run** or **Create cards** (Subtasks column creates checklist groups + check items).
 
 **Labels** — detailed label breakdown by list, plus create/rename/recolor/delete. The Excel `Labels` column uses label names; any name not already on the board is created automatically during import.
 

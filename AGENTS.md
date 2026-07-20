@@ -24,6 +24,8 @@ The connected board is interpreted as:
 | --- | --- |
 | **Cards / Lists / Labels / Boards** | Taxonomy field sources (raw names = dimension values) |
 | **Card** | Task |
+| **Checklist** | Named group of subtasks |
+| **Check item** | Subtask (`complete` / `incomplete`) |
 | **Card flags** | Status via derived `lifecycleStatus` (not list names) |
 
 Dashboard Status pies always use derived `lifecycleStatus` from `compute_lifecycle_status()` (`functions/status.py`), recomputed on every sync (never stored). Precedence (first match wins):
@@ -49,6 +51,7 @@ trello_from_excel/
 │   ├── trello_board.py         # lists / cards reads / members / resolve ids
 │   ├── trello_labels.py        # label CRUD + resolve/create missing
 │   ├── trello_cards.py         # card create / update / delete
+│   ├── trello_checklists.py    # checklist / check-item CRUD (subtasks)
 │   ├── neon.py                 # Neon Postgres (psycopg) — sole DB surface
 │   ├── neon_entity.py          # entity configuration table mixin
 │   ├── neon_workspace.py       # workspaces + members mixin
@@ -71,6 +74,7 @@ trello_from_excel/
 │   ├── charts.py               # Altair burndown/donut + status legend HTML
 │   ├── status.py               # compute_lifecycle_status
 │   ├── excel.py                # load/normalize Excel, template bytes
+│   ├── subtasks.py             # checklists ↔ subtasks + Excel encode/decode
 │   ├── label_dashboard.py      # build_label_dashboard
 │   ├── burndown.py             # card_lifecycle + build_burndown_series
 │   ├── dashboard_breakdown.py  # lifecycle pie breakdown helpers
@@ -121,6 +125,7 @@ trello_from_excel/
 │       ├── cards_filters.py    # list / due / label / assignee filters
 │       ├── cards_table.py      # card table + selection
 │       ├── cards_edit.py       # edit / move / delete one card
+│       ├── cards_subtasks.py   # checklist check items as subtasks
 │       ├── cards_mass_delete.py# bulk delete confirmation
 │       ├── label_overview.py   # label breakdown table/charts
 │       └── label_crud.py       # label create / update / delete
@@ -191,6 +196,7 @@ Columns are case-insensitive via `COLUMN_ALIASES` (`constants/excel.py`):
 | due | due, due_date, deadline, date | Excel date or ISO |
 | start | start, start_date | |
 | pos | pos, position | `top`, `bottom`, or number |
+| subtasks | subtasks, checklist(s), check_items, checkitems | Check items as subtasks: `Group: a \| b; Other: c` (bare items → checklist `Subtasks`). Import creates incomplete items only |
 
 Prefer extending `COLUMN_ALIASES` over one-off column handling in the UI.
 
@@ -212,7 +218,7 @@ Prefer extending `COLUMN_ALIASES` over one-off column handling in the UI.
 `app.py` dispatches; sidebar is `ui/component/sidebar.py`. Main nav (`constants/pages.py`):
 
 1. **Dashboard** (`ui/views/dashboard.py`) — lifecycle + taxonomy filters, dimension rollups (needs connected client)
-2. **Cards** (`ui/views/cards.py`) — Manage tab (`ui/tabs/manage.py`: filters, edit/move/delete, mass delete) and Import tab (`ui/tabs/import_cards.py`: upload `.xlsx`, preview, dry-run or create)
+2. **Cards** (`ui/views/cards.py`) — Manage tab (`ui/tabs/manage.py`: filters, edit/move/delete, subtasks via checklists, mass delete) and Import tab (`ui/tabs/import_cards.py`: upload `.xlsx`, preview, dry-run or create)
 3. **Labels** (`ui/views/labels.py`) — breakdown + CRUD + color palette
 4. **Settings** (`ui/views/settings.py`) — **Connections** tab (`ui/tabs/settings_connections.py`; Neon `app_trello_connections`) and **Configuration** tab (`ui/tabs/configuration.py`; workspace taxonomy dimensions, dimension→Trello field mappings, JSON import/export, unmapped policy; signed-in only)
 
@@ -228,5 +234,6 @@ When adding a page: register it in `PAGES` (`constants/pages.py`), add `ui/views
 ## When changing behavior
 
 - **New card fields:** extend `COLUMN_ALIASES` (`constants/excel.py`), `process_tasks` (`services/excel.py`), and `TrelloClient.create_card` / `update_card` together; update README.
+- **Subtasks (check items):** extend `clients/trello_checklists.py`, `functions/subtasks.py`, Cards Manage UI, and Excel `Subtasks` column together; checklists are named groups of subtasks.
 - **New dashboard metric:** compute in `functions/initiative_dashboard.py` (or related helpers), render in `ui/views/dashboard.py` / related components.
 - **Taxonomy mappings:** extend `constants/taxonomy.py`, Neon taxonomy mixins, `functions/taxonomy.py`, and Settings → Configuration UI together; keep one Trello field per dimension.

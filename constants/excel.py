@@ -16,6 +16,13 @@ COLUMN_ALIASES = {
     "due": {"due", "due_date", "deadline", "date"},
     "start": {"start", "start_date"},
     "pos": {"pos", "position"},
+    "subtasks": {
+        "subtasks",
+        "checklist",
+        "checklists",
+        "check_items",
+        "checkitems",
+    },
 }
 
 TEMPLATE_COLUMNS = (
@@ -27,4 +34,5 @@ TEMPLATE_COLUMNS = (
     "Due",
     "Start",
     "Position",
+    "Subtasks",
 )

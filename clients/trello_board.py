@@ -83,7 +83,10 @@ class TrelloBoardMixin:
         cards = self._get(
             f"/boards/{self.board_id}/cards",
             filter="open",
-            fields="id,name,desc,due,start,idList,idLabels,idMembers,shortUrl,pos",
+            fields=(
+                "id,name,desc,due,start,idList,idLabels,idMembers,"
+                "shortUrl,pos,badges"
+            ),
         )
         return [
             {
@@ -97,6 +100,7 @@ class TrelloBoardMixin:
                 "idMembers": item.get("idMembers") or [],
                 "shortUrl": item.get("shortUrl") or "",
                 "pos": item.get("pos"),
+                "badges": item.get("badges") or {},
             }
             for item in cards
         ]

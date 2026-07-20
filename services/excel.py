@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from io import BytesIO
+from typing import Any
 
 import pandas as pd
 
@@ -17,6 +18,7 @@ from functions.excel import (
     list_sheet_names,
     load_tasks,
 )
+from functions.subtasks import parse_subtasks_cell
 
 ProgressCallback = Callable[[int, int, str], None]
 
@@ -31,9 +33,16 @@ def excel_cards_export_bytes(
     list_id_to_name: dict[str, str],
     label_names: dict[str, str],
     member_names: dict[str, str],
+    client: TrelloClient | None = None,
 ) -> bytes:
+    rows = cards
+    if client is not None:
+        rows = [
+            {**card, "checklists": client.card_checklists(card["id"])}
+            for card in cards
+        ]
     return build_cards_excel(
-        cards,
+        rows,
         list_id_to_name=list_id_to_name,
         label_names=label_names,
         member_names=member_names,
@@ -46,6 +55,38 @@ def read_sheet_names(buffer: BytesIO) -> list[str]:
 
 def read_tasks(buffer: BytesIO, sheet: str):
     return load_tasks(buffer, sheet)
+
+
+def _create_subtasks_for_card(
+    client: TrelloClient,
+    card_id: str,
+    subtasks_value: Any,
+    *,
+    dry_run: bool,
+    delay: float,
+) -> str:
+    """Create checklist groups + check items from an Excel Subtasks cell."""
+    groups = parse_subtasks_cell(cell_str(subtasks_value))
+    if not groups:
+        return ""
+
+    if dry_run:
+        summary = "; ".join(
+            f"{g['name']}({len(g['items'])})" for g in groups
+        )
+        return f" [would create subtasks: {summary}]"
+
+    for group in groups:
+        checklist = client.create_checklist(card_id, name=group["name"])
+        checklist_id = checklist["id"]
+        if delay > 0:
+            time.sleep(delay)
+        for item_name in group["items"]:
+            client.create_check_item(checklist_id, item_name, checked=False)
+            if delay > 0:
+                time.sleep(delay)
+    total_items = sum(len(g["items"]) for g in groups)
+    return f" [created {len(groups)} checklist(s), {total_items} subtask(s)]"
 
 
 def process_tasks(
@@ -94,12 +135,20 @@ def process_tasks(
                 created_note = f" [{action} label(s): {', '.join(created_labels)}]"
 
             if dry_run:
+                subtask_note = _create_subtasks_for_card(
+                    client,
+                    "",
+                    row.get("subtasks"),
+                    dry_run=True,
+                    delay=delay,
+                )
                 logs.append(
                     f"[dry-run] row {row_num}: {name!r} "
                     f"→ list={list_id} labels={label_ids or '-'} "
                     f"members={member_ids or '-'} "
                     f"due={due or '-'} start={start or '-'} "
-                    f"pos={pos if pos is not None else '-'}{created_note}"
+                    f"pos={pos if pos is not None else '-'}"
+                    f"{created_note}{subtask_note}"
                 )
             else:
                 card = client.create_card(
@@ -112,12 +161,20 @@ def process_tasks(
                     id_labels=label_ids,
                     id_members=member_ids,
                 )
-                logs.append(
-                    f"Created row {row_num}: {name!r} → "
-                    f"{card.get('shortUrl', card.get('id'))}{created_note}"
-                )
                 if delay > 0:
                     time.sleep(delay)
+                subtask_note = _create_subtasks_for_card(
+                    client,
+                    card["id"],
+                    row.get("subtasks"),
+                    dry_run=False,
+                    delay=delay,
+                )
+                logs.append(
+                    f"Created row {row_num}: {name!r} → "
+                    f"{card.get('shortUrl', card.get('id'))}"
+                    f"{created_note}{subtask_note}"
+                )
 
             created += 1
             status = f"{'Validated' if dry_run else 'Created'} {done}/{total}: {name}"
