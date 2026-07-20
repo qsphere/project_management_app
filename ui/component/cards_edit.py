@@ -6,6 +6,7 @@ from services import delete_card, update_card
 from clients import TrelloClient
 from functions.dates import format_date_field, format_due, parse_card_date
 from functions.cards import unique_card_choices
+from ui.component.cards_subtasks import render_card_subtasks
 
 
 def _clear_edit_dialog() -> None:
@@ -141,6 +142,8 @@ def open_card_edit_dialog(
             st.markdown(
                 f"[Open in Trello :material/open_in_new:]({selected['shortUrl']})"
             )
+
+        render_card_subtasks(client, selected["id"])
 
         col_save, col_delete = st.columns(2)
         if col_save.button(

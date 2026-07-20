@@ -120,3 +120,46 @@ def update_card(client: TrelloClient, card_id: str, **kwargs) -> dict:
 
 def delete_card(client: TrelloClient, card_id: str) -> None:
     client.delete_card(card_id)
+
+
+def load_card_checklists(client: TrelloClient, card_id: str) -> list[dict]:
+    return client.card_checklists(card_id)
+
+
+def create_checklist(
+    client: TrelloClient, card_id: str, *, name: str = "Checklist"
+) -> dict:
+    return client.create_checklist(card_id, name=name)
+
+
+def delete_checklist(client: TrelloClient, checklist_id: str) -> None:
+    client.delete_checklist(checklist_id)
+
+
+def create_check_item(
+    client: TrelloClient,
+    checklist_id: str,
+    name: str,
+    *,
+    checked: bool = False,
+) -> dict:
+    return client.create_check_item(checklist_id, name, checked=checked)
+
+
+def update_check_item(
+    client: TrelloClient,
+    card_id: str,
+    check_item_id: str,
+    *,
+    name: str | None = None,
+    state: str | None = None,
+) -> dict:
+    return client.update_check_item(
+        card_id, check_item_id, name=name, state=state
+    )
+
+
+def delete_check_item(
+    client: TrelloClient, checklist_id: str, check_item_id: str
+) -> None:
+    client.delete_check_item(checklist_id, check_item_id)

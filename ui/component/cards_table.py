@@ -8,15 +8,17 @@ import streamlit.components.v1 as components
 
 from ui.component.cards_mass_delete import confirm_bulk_delete
 from functions.dates import display_card_date
+from functions.subtasks import format_subtask_progress
 from clients import TrelloClient
 from services import excel_cards_export_bytes
 
 # Bust stale dataframe state when action columns change shape.
-_TABLE_KEY = "cards_manage_table_v4"
+_TABLE_KEY = "cards_manage_table_v5"
 _LEGACY_TABLE_KEYS = (
     "cards_manage_table",
     "cards_manage_table_v2",
     "cards_manage_table_v3",
+    "cards_manage_table_v4",
 )
 _EXPORT_MIME = (
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -152,6 +154,7 @@ def render_cards_table(
                 "LIST": list_id_to_name.get(card.get("idList") or "", "—"),
                 "DESCRIPTION": (card.get("desc") or "")[:80],
                 "DUE": display_card_date(card.get("due")),
+                "SUBTASKS": format_subtask_progress(card),
                 "LABELS": labels or "—",
                 "ASSIGNEE": members or "—",
                 "ACTIONS": _row_actions(card),
@@ -180,6 +183,9 @@ def render_cards_table(
                 "DESCRIPTION", width="large"
             ),
             "DUE": st.column_config.TextColumn("DUE", width="small"),
+            "SUBTASKS": st.column_config.TextColumn(
+                "SUBTASKS", width="small", help="Completed / total check items"
+            ),
             "LABELS": st.column_config.TextColumn("LABELS", width="small"),
             "ASSIGNEE": st.column_config.TextColumn("ASSIGNEE", width="medium"),
             "ACTIONS": st.column_config.ButtonColumn(
@@ -216,6 +222,7 @@ def render_cards_table(
                 list_id_to_name=list_id_to_name,
                 label_names=label_names,
                 member_names=member_names,
+                client=client,
             )
             if selected_bulk
             else None
